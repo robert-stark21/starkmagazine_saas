@@ -98,9 +98,9 @@ function decodeBody(bytes: Uint8Array, contentType: string | null): string {
 
 async function fetchSource(src: Source): Promise<Article[]> {
   if (src.scrape) {
-    // Listing pages of sites without a feed (Awwwards, CSS Design Awards).
+    // Listing pages of sites without a usable feed (award sites, UXmatters, ColorME…).
     const items = await SCRAPERS[src.scrape](src.url);
-    return items.slice(0, 20).map((it) => ({
+    const list: Article[] = items.slice(0, 20).map((it) => ({
       id: toId(it.link),
       title: it.title,
       link: it.link,
@@ -108,12 +108,13 @@ async function fetchSource(src: Source): Promise<Article[]> {
       text: it.excerpt ?? "",
       image: it.image,
       source: src.name,
-      category: src.category,
+      category: it.category ?? src.category,
       lang: src.lang,
       region: src.region,
       published: it.published,
-      keepTitle: true,
+      keepTitle: !!it.keepTitle,
     }));
+    return src.pageImages ? addPageImages(list) : list;
   }
   const res = await fetch(src.url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; TinTongHop/1.0; +rss reader)" },

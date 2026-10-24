@@ -77,6 +77,8 @@ export const SOURCES: Source[] = [
   { name: "Tạp chí Kiến trúc", url: "https://www.tapchikientruc.com.vn/feed", category: "design", lang: "vi", region: "vn" },
   { name: "RGB", url: "https://rgb.vn/category/inspiration/design/feed/", category: "design", lang: "vi", region: "vn" },
   { name: "RGB", url: "https://rgb.vn/category/inspiration/typography/feed/", category: "design", lang: "vi", region: "vn" },
+  // ColorME: each post goes to Design or UI/UX by its title (see scrapers.ts); course ads are skipped.
+  { name: "ColorME", url: "https://colorme.vn/blog", category: "design", lang: "vi", region: "vn", scrape: "colorme" },
 
   // UI/UX
   { name: "Smashing Magazine", url: "https://www.smashingmagazine.com/feed/", category: "ui-ux", lang: "en", region: "intl" },
@@ -84,6 +86,9 @@ export const SOURCES: Source[] = [
   { name: "UX Collective", url: "https://uxdesign.cc/feed", category: "ui-ux", lang: "en", region: "intl" },
   { name: "Nielsen Norman Group", url: "https://www.nngroup.com/feed/rss/", category: "ui-ux", lang: "en", region: "intl" },
   { name: "UX Planet", url: "https://uxplanet.org/feed", category: "ui-ux", lang: "en", region: "intl" },
+  // No usable feed (UXmatters' feeds stopped in 2024): read from the listing pages.
+  { name: "UXmatters", url: "https://www.uxmatters.com/", category: "ui-ux", lang: "en", region: "intl", scrape: "uxmatters" },
+  { name: "UX Foundation", url: "https://uxfoundation.vn/case-study", category: "ui-ux", lang: "vi", region: "vn", scrape: "uxfoundation" },
 
   // Nội thất
   { name: "Kiến trúc Việt Nam", url: "https://kientrucvietnam.org.vn/feed/", category: "noi-that", lang: "vi", region: "vn" },

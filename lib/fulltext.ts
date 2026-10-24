@@ -382,7 +382,8 @@ const PROMO_STRONG = new RegExp(
   "i"
 );
 /** Phrases that also appear in real sentences, so only very short lines are dropped. */
-const PROMO_WEAK = /\blive on sky\b|\bwatch .{0,40}\blive\b|\bsign up\b|\bsubscribe\b|\bnewsletter\b|\bfollow us\b|\bkick.?off \d|theo dõi chúng tôi/i;
+const COURSE_AD = /kh(?:oá|óa|oa) học\b.{0,80}\b(?:của|tại) colorme\b/i;
+const PROMO_WEAK =/\blive on sky\b|\bwatch .{0,40}\blive\b|\bsign up\b|\bsubscribe\b|\bnewsletter\b|\bfollow us\b|\bkick.?off \d|theo dõi chúng tôi/i;
 
 const DAY = "(?:mon|tues|wednes|thurs|fri|satur|sun)day";
 /** Broadcast schedule lines like "Sunday 25th October 12:30pm, Kick off 2:00pm". */
@@ -394,6 +395,8 @@ const ENDS_WITH_ICON = /(?:\p{Extended_Pictographic}|[▶►→➡»›⚪🔵])
 function isJunk(el: any, text: string): boolean {
   const len = text.length;
   if (len > 400) return false;
+  // Course ads at the end of school blogs ("...xem khoá học CapCut của ColorME").
+  if (COURSE_AD.test(text)) return true;
   // Mostly link text: navigation lists, "Transfer Centre LIVE! | Brighton news" and the like.
   let linked = 0;
   for (const a of Array.from(el.querySelectorAll("a")) as any[]) linked += (a.textContent ?? "").replace(/\s+/g, " ").trim().length;
