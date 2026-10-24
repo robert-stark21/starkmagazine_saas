@@ -88,6 +88,7 @@ export const SOURCES: Source[] = [
   { name: "UX Planet", url: "https://uxplanet.org/feed", category: "ui-ux", lang: "en", region: "intl" },
   // No usable feed (UXmatters' feeds stopped in 2024): read from the listing pages.
   { name: "UXmatters", url: "https://www.uxmatters.com/", category: "ui-ux", lang: "en", region: "intl", scrape: "uxmatters" },
+  { name: "ColorME", url: "https://colorme.vn/blog?category=12", category: "ui-ux", lang: "vi", region: "vn", scrape: "colorme" }, // chuyên mục "UI UX"
   { name: "UX Foundation", url: "https://uxfoundation.vn/case-study", category: "ui-ux", lang: "vi", region: "vn", scrape: "uxfoundation" },
 
   // Nội thất

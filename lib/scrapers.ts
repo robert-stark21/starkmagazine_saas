@@ -140,7 +140,8 @@ async function colorme(url: string): Promise<ScrapedItem[]> {
   const found: ScrapedItem[] = [];
   for (const a of Array.from(doc.querySelectorAll('a[href*="/blog/"]')) as any[]) {
     const link = new URL(a.getAttribute("href"), url).href.split(/[?#]/)[0];
-    const title = text(a.querySelector("h1,h2,h3,h4") ?? a.querySelector("span"));
+    // Cards have a heading; the numbered "most read" list (older posts, span only) is skipped.
+    const title = text(a.querySelector("h1,h2,h3,h4"));
     if (!title || title.length < 12 || seen.has(link) || COLORME_PROMO.test(title)) continue;
     seen.add(link);
     const img = a.querySelector("img")?.getAttribute("src");
@@ -150,7 +151,8 @@ async function colorme(url: string): Promise<ScrapedItem[]> {
       image: img ? new URL(img, url).href : undefined,
       excerpt: "",
       published: "",
-      category: COLORME_UIUX.test(title) ? "ui-ux" : "design",
+      // A category page (e.g. "UI UX") keeps the source's section; the main blog is sorted by title.
+      category: url.includes("category=") ? undefined : COLORME_UIUX.test(title) ? "ui-ux" : "design",
     });
   }
   // The listing has no dates: read them (and missing pictures) from the pages' <head>.
