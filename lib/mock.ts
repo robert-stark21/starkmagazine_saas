@@ -28,7 +28,7 @@ const SAMPLES: Record<string, { vi: string[]; en: string[] }> = {
     vi: [],
     en: ["How to write better microcopy for error states", "Designing accessible color systems", "Why your onboarding flow loses users", "A practical guide to design tokens"],
   },
-  "noi-that": {
+  "kien-truc": {
     vi: ["Căn hộ 60m² tại Sài Gòn với ánh sáng tự nhiên tràn ngập", "Nhà phố Hà Nội dùng gạch mộc và cây xanh"],
     en: ["A minimalist Kyoto house built around a courtyard", "Warm wood interiors for a Copenhagen apartment", "Seaside villa in Portugal blends concrete and linen"],
   },

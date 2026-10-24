@@ -16,7 +16,7 @@ const literata = Literata({ subsets: ["latin", "latin-ext", "vietnamese"], displ
 
 export const metadata: Metadata = {
   title: "STARK · Tin tức tổng hợp",
-  description: "Công nghệ, crypto, tài chính, thể thao, design, UI/UX và nội thất, cập nhật mỗi 10 phút.",
+  description: "Công nghệ, crypto, tài chính, thể thao, design, UI/UX và kiến trúc, cập nhật mỗi 10 phút.",
 };
 
 export const viewport: Viewport = {

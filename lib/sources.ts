@@ -26,7 +26,7 @@ export const CATEGORIES: Category[] = [
   { slug: "the-thao", vi: "Thể thao", en: "Sports", color: "#dc2626" },
   { slug: "design", vi: "Design", en: "Design", color: "#9333ea" },
   { slug: "ui-ux", vi: "UI/UX", en: "UI/UX", color: "#db2777" },
-  { slug: "noi-that", vi: "Nội thất", en: "Interiors", color: "#a16207" },
+  { slug: "kien-truc", vi: "Kiến trúc", en: "Architecture", color: "#a16207" },
   { slug: "phim-anh", vi: "Phim ảnh", en: "Film", color: "#0891b2" },
   { slug: "inspiration", vi: "Inspiration", en: "Inspiration", color: "#ea580c" },
   { slug: "quang-cao", vi: "Quảng cáo", en: "Advertising", color: "#4f46e5" },
@@ -71,10 +71,10 @@ export const SOURCES: Source[] = [
   { name: "Football Italia", url: "https://football-italia.net/feed/", category: "the-thao", lang: "en", region: "intl" },
 
   // Design
-  { name: "Dezeen", url: "https://www.dezeen.com/feed/", category: "design", lang: "en", region: "intl" },
+  { name: "Dezeen", url: "https://www.dezeen.com/feed/", category: "kien-truc", lang: "en", region: "intl" },
   { name: "designboom", url: "https://www.designboom.com/feed/", category: "design", lang: "en", region: "intl" },
   { name: "Creative Bloq", url: "https://www.creativebloq.com/feeds/all", category: "design", lang: "en", region: "intl" },
-  { name: "Tạp chí Kiến trúc", url: "https://www.tapchikientruc.com.vn/feed", category: "design", lang: "vi", region: "vn" },
+  { name: "Tạp chí Kiến trúc", url: "https://www.tapchikientruc.com.vn/feed", category: "kien-truc", lang: "vi", region: "vn" },
   { name: "RGB", url: "https://rgb.vn/category/inspiration/design/feed/", category: "design", lang: "vi", region: "vn" },
   { name: "RGB", url: "https://rgb.vn/category/inspiration/typography/feed/", category: "design", lang: "vi", region: "vn" },
   // ColorME: each post goes to Design or UI/UX by its title (see scrapers.ts); course ads are skipped.
@@ -91,12 +91,12 @@ export const SOURCES: Source[] = [
   { name: "ColorME", url: "https://colorme.vn/blog?category=12", category: "ui-ux", lang: "vi", region: "vn", scrape: "colorme" }, // chuyên mục "UI UX"
   { name: "UX Foundation", url: "https://uxfoundation.vn/case-study", category: "ui-ux", lang: "vi", region: "vn", scrape: "uxfoundation" },
 
-  // Nội thất
-  { name: "Kiến trúc Việt Nam", url: "https://kientrucvietnam.org.vn/feed/", category: "noi-that", lang: "vi", region: "vn" },
-  { name: "RGB", url: "https://rgb.vn/category/arcvibes/feed/", category: "noi-that", lang: "vi", region: "vn" },
-  { name: "Dezeen Interiors", url: "https://www.dezeen.com/interiors/feed/", category: "noi-that", lang: "en", region: "intl" },
-  { name: "ArchDaily", url: "https://feeds.feedburner.com/Archdaily", category: "noi-that", lang: "en", region: "intl" },
-  { name: "Architectural Digest", url: "https://www.architecturaldigest.com/feed/rss", category: "noi-that", lang: "en", region: "intl" },
+  // Kiến trúc (kiến trúc và nội thất)
+  { name: "Kiến trúc Việt Nam", url: "https://kientrucvietnam.org.vn/feed/", category: "kien-truc", lang: "vi", region: "vn" },
+  { name: "RGB", url: "https://rgb.vn/category/arcvibes/feed/", category: "kien-truc", lang: "vi", region: "vn" },
+  { name: "Dezeen Interiors", url: "https://www.dezeen.com/interiors/feed/", category: "kien-truc", lang: "en", region: "intl" },
+  { name: "ArchDaily", url: "https://feeds.feedburner.com/Archdaily", category: "kien-truc", lang: "en", region: "intl" },
+  { name: "Architectural Digest", url: "https://www.architecturaldigest.com/feed/rss", category: "kien-truc", lang: "en", region: "intl" },
 
   // Phim ảnh
   { name: "Tuổi Trẻ Điện ảnh", url: "https://tuoitre.vn/rss/dien-anh.rss", category: "phim-anh", lang: "vi", region: "vn" },
