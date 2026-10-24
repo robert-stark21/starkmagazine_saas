@@ -19,7 +19,7 @@ export type Match = {
   pinned?: boolean; // Real Madrid or AC Milan playing live
 };
 
-const ESPN: { slug: string; league: Match["league"] }[] = [
+export const ESPN: { slug: string; league: Match["league"] }[] = [
   { slug: "uefa.champions", league: "C1" },
   { slug: "uefa.europa", league: "C2" },
   { slug: "eng.1", league: "EPL" },

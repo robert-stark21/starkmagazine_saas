@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { imgSrc } from "@/lib/img";
@@ -196,7 +196,7 @@ export function PriceTicker({ initial, lang }: { initial: Quote[]; lang: "vi" | 
 }
 
 /** League logos (40px files in public/leagues; "-dark" versions for dark backgrounds). */
-const LEAGUES: Record<Match["league"], { name: string; file: string; dark?: boolean }> = {
+export const LEAGUES: Record<Match["league"], { name: string; file: string; dark?: boolean }> = {
   C1: { name: "UEFA Champions League", file: "c1", dark: true },
   C2: { name: "UEFA Europa League", file: "c2", dark: true },
   EPL: { name: "Premier League", file: "epl", dark: true },
@@ -206,7 +206,7 @@ const LEAGUES: Record<Match["league"], { name: string; file: string; dark?: bool
 };
 
 /** Small league logo, fixed size so nothing shifts while it loads. */
-function LeagueLogo({ league }: { league: Match["league"] }) {
+export function LeagueLogo({ league }: { league: Match["league"] }) {
   const l = LEAGUES[league];
   return (
     <span className="m-lg" title={l.name}>
@@ -216,15 +216,27 @@ function LeagueLogo({ league }: { league: Match["league"] }) {
   );
 }
 
+// The match popup is a separate chunk, fetched only on the Sports page.
+const MatchPop = lazy(() => import("./MatchPop"));
+const popModule = () => import("./MatchPop");
+
+const SPEED = 40; // px per second
+const HOLD = 2000; // ms of stillness after a drag before the row moves again
+
 /**
  * Results ticker on the Sports page: UCL, UEL, Premier League, La Liga, Serie A and
  * V-League, from yesterday to tomorrow. Live first, then results, then upcoming. A live
  * Real Madrid or AC Milan match is pinned on the left, outside the scrolling part.
+ *
+ * The row moves by script (one position shared by auto-scroll and dragging): it can be
+ * grabbed and thrown left or right with a little momentum, and waits 2 seconds before
+ * moving on. Hovering a match (desktop) or tapping it opens its details panel.
  */
 export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
   const show = usePathname() === "/c/the-thao";
   const [matches, setMatches] = useState<Match[] | null>(null); // null while loading
   const track = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!show) return;
@@ -236,11 +248,172 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
         .catch(() => { if (!stop) setMatches((m) => m ?? []); });
     load();
     const t = setInterval(load, 30_000);
-    return () => { stop = true; clearInterval(t); };
+    // Fetch the popup code while the browser is idle, so the first hover opens at once.
+    const idle = setTimeout(() => popModule().catch(() => {}), 1500);
+    return () => { stop = true; clearInterval(t); clearTimeout(idle); };
   }, [show]);
   const list = (matches ?? []).filter((m) => !m.pinned);
-  useTickerSpeed(track, [list.length, show]);
+  const byId = useRef(new Map<string, Match>());
+  byId.current = new Map((matches ?? []).map((m) => [m.id, m]));
   useTickerFade(row, show);
+
+  // ---- popup state ----
+  const [pop, setPop] = useState<{ m: Match; el: HTMLElement; below: number; closing: boolean } | null>(null);
+  const popRef = useRef(pop);
+  popRef.current = pop;
+  const openTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const openAt = useCallback((el: HTMLElement) => {
+    const m = byId.current.get(el.dataset.mid ?? "");
+    if (!m || !row.current) return;
+    clearTimeout(closeTimer.current);
+    setPop({ m, el, below: row.current.getBoundingClientRect().bottom, closing: false });
+  }, []);
+  const close = useCallback((delay = 0) => {
+    clearTimeout(openTimer.current);
+    clearTimeout(closeTimer.current);
+    const go = () => setPop((p) => (p && !p.closing ? { ...p, closing: true } : p));
+    if (delay) closeTimer.current = setTimeout(go, delay);
+    else go();
+  }, []);
+  const gone = useCallback(() => setPop((p) => (p?.closing ? null : p)), []);
+  const prefetch = (el: HTMLElement) => {
+    const m = byId.current.get(el.dataset.mid ?? "");
+    if (m) popModule().then((x) => x.prefetchMatch(m)).catch(() => {});
+  };
+
+  // Close on Escape, a press outside, page scroll or a resize.
+  useEffect(() => {
+    if (!pop || pop.closing) return;
+    const y0 = scrollY;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (t?.closest?.(".mp-wrap, [data-mid]")) return;
+      close();
+    };
+    const onScroll = () => Math.abs(scrollY - y0) > 8 && close();
+    addEventListener("keydown", onKey);
+    addEventListener("pointerdown", onDown, true);
+    addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      removeEventListener("keydown", onKey);
+      removeEventListener("pointerdown", onDown, true);
+      removeEventListener("scroll", onScroll);
+    };
+  }, [pop, close]);
+
+  // ---- motion: auto-scroll, drag and momentum share one offset ----
+  const motion = useRef({ x: 0, v: 0, run: 0, hover: false, holdUntil: 0, suppress: false,
+    drag: null as null | { id: number; x0: number; start: number; moved: boolean; lastX: number; lastT: number } });
+  useEffect(() => {
+    const el = track.current;
+    if (!show || !el) return;
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let last = performance.now();
+    let frame = requestAnimationFrame(function step(t) {
+      const dt = Math.min(0.05, (t - last) / 1000);
+      last = t;
+      const s = motion.current;
+      if (!s.drag) {
+        if (Math.abs(s.v) > 8) {
+          // Thrown: glide and slow down.
+          s.x += s.v * dt;
+          s.v *= Math.pow(0.03, dt);
+          s.holdUntil = t + HOLD;
+        } else {
+          s.v = 0;
+          const go = !still && !s.hover && !popRef.current && t > s.holdUntil ? 1 : 0;
+          s.run += (go - s.run) * Math.min(1, dt * (go ? 2.5 : 7)); // ease in slowly, stop quickly
+          if (Math.abs(go - s.run) < 0.01) s.run = go;
+          s.x -= SPEED * s.run * dt;
+        }
+      }
+      const half = el.scrollWidth / 2;
+      if (half > 0) s.x = ((s.x % half) - half) % half; // seamless loop: always in (-half, 0]
+      el.style.transform = `translate3d(${s.x.toFixed(2)}px,0,0)`;
+      frame = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [show, list.length]);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.button > 0) return;
+    const s = motion.current;
+    s.v = 0;
+    s.drag = { id: e.pointerId, x0: e.clientX, start: s.x, moved: false, lastX: e.clientX, lastT: e.timeStamp };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const s = motion.current;
+    const d = s.drag;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x0;
+    if (!d.moved && Math.abs(dx) > 6) {
+      d.moved = true;
+      scroller.current?.setPointerCapture(e.pointerId);
+      scroller.current?.classList.add("dragging");
+      clearTimeout(openTimer.current);
+      if (popRef.current) close();
+    }
+    if (!d.moved) return;
+    s.x = d.start + dx;
+    const dt = e.timeStamp - d.lastT;
+    if (dt > 0) s.v = 0.7 * (((e.clientX - d.lastX) / dt) * 1000) + 0.3 * s.v;
+    d.lastX = e.clientX;
+    d.lastT = e.timeStamp;
+  };
+  const endDrag = (e: React.PointerEvent, cancel = false) => {
+    const s = motion.current;
+    const d = s.drag;
+    if (!d || d.id !== e.pointerId) return;
+    s.drag = null;
+    if (!d.moved) return;
+    scroller.current?.classList.remove("dragging");
+    // A drag is not a click; a pause before letting go means no throw.
+    s.suppress = true;
+    setTimeout(() => (s.suppress = false), 0);
+    if (cancel || e.timeStamp - d.lastT > 90) s.v = 0;
+    s.v = Math.max(-2500, Math.min(2500, s.v));
+    s.holdUntil = performance.now() + HOLD;
+  };
+
+  // Hover intent (mouse only): 150ms on a match opens it; moving to a neighbour while
+  // the panel is open switches it quickly. Leaving closes after a short delay.
+  const onOver = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse" || motion.current.drag?.moved) return;
+    const el = (e.target as Element).closest<HTMLElement>("[data-mid]");
+    if (!el) return;
+    clearTimeout(closeTimer.current);
+    if (popRef.current?.el === el && !popRef.current.closing) return;
+    prefetch(el);
+    clearTimeout(openTimer.current);
+    openTimer.current = setTimeout(() => openAt(el), popRef.current && !popRef.current.closing ? 70 : 150);
+  };
+  const onOut = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse") return;
+    const from = (e.target as Element).closest("[data-mid]");
+    const to = (e.relatedTarget as Element | null)?.closest?.("[data-mid], .mp-wrap");
+    if (from && !to) {
+      clearTimeout(openTimer.current);
+      if (popRef.current) close(220);
+    }
+  };
+  const onClick = (e: React.MouseEvent) => {
+    if (motion.current.suppress) { e.preventDefault(); e.stopPropagation(); return; }
+    const el = (e.target as Element).closest<HTMLElement>("[data-mid]");
+    if (!el) return;
+    clearTimeout(openTimer.current);
+    const p = popRef.current;
+    const mouse = (e.nativeEvent as PointerEvent).pointerType === "mouse";
+    // A tap on the open match closes it; a mouse click keeps it open.
+    if (p && p.el === el && !p.closing) { if (!mouse) close(); return; }
+    openAt(el);
+  };
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const el = (e.target as Element).closest<HTMLElement>("[data-mid]");
+    if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openAt(el); }
+  };
+
   // While loading the row keeps its height so the page does not jump; with no data it hides.
   if (!show || (matches && !matches.length)) return null;
 
@@ -261,8 +434,17 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
     ) : (
       <span className="m-st">{time(m.kickoff)}</span>
     );
-  const item = (m: Match, k: string) => (
-    <span className={`tick match${m.state === "live" ? " is-live" : ""}`} key={k}>
+  const active = pop && !pop.closing ? pop.el : null;
+  const item = (m: Match, k: string, copy: boolean) => (
+    <span
+      className={`tick match${m.state === "live" ? " is-live" : ""}`}
+      key={k}
+      data-mid={m.id}
+      role="button"
+      tabIndex={copy ? -1 : 0}
+      aria-label={`${m.home} ${m.state === "pre" ? "–" : `${m.hs}–${m.as}`} ${m.away}`}
+      aria-expanded={active?.dataset.mid === m.id ? true : undefined}
+    >
       <LeagueLogo league={m.league} />
       <span className="m-tm">{m.home}</span>
       <b className="m-sc">{m.state === "pre" ? "–" : `${m.hs}–${m.as}`}</b>
@@ -271,9 +453,26 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
     </span>
   );
   return (
-    <div className="ticker scores" ref={row} role="region" aria-label={vi ? "Kết quả bóng đá" : "Football scores"}>
+    <div
+      className={`ticker scores${pop && !pop.closing ? " has-pop" : ""}`}
+      ref={row}
+      role="region"
+      aria-label={vi ? "Kết quả bóng đá" : "Football scores"}
+      onPointerOver={onOver}
+      onPointerOut={onOut}
+      onPointerEnter={(e) => e.pointerType === "mouse" && (motion.current.hover = true)}
+      onPointerLeave={(e) => e.pointerType === "mouse" && (motion.current.hover = false)}
+      onClickCapture={onClick}
+      onKeyDown={onKeyDown}
+    >
       {pinned && (
-        <div className="pin" title={`${pinned.home} ${pinned.hs}–${pinned.as} ${pinned.away}`}>
+        <div
+          className="pin"
+          data-mid={pinned.id}
+          role="button"
+          tabIndex={0}
+          title={`${pinned.home} ${pinned.hs}–${pinned.as} ${pinned.away}`}
+        >
           <span className="live-badge">LIVE</span>
           <LeagueLogo league={pinned.league} />
           <span className="pin-tm">{pinned.homeAbbr || pinned.home}</span>
@@ -282,17 +481,45 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
           <span className="m-st live">{pinned.minute}</span>
         </div>
       )}
-      <div className="ticker-scroll">
+      <div
+        className="ticker-scroll"
+        ref={scroller}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={(e) => endDrag(e)}
+        onPointerCancel={(e) => endDrag(e, true)}
+        onDragStart={(e) => e.preventDefault()}
+      >
         {list.length > 0 && (
-          <div className="ticker-track" ref={track} aria-hidden="true">
-            <div className="ticker-group">{list.map((m) => item(m, `a${m.id}`))}</div>
-            <div className="ticker-group">{list.map((m) => item(m, `b${m.id}`))}</div>
+          <div className="ticker-track js" ref={track}>
+            <div className="ticker-group">{list.map((m) => item(m, `a${m.id}`, false))}</div>
+            <div className="ticker-group" aria-hidden="true">{list.map((m) => item(m, `b${m.id}`, true))}</div>
           </div>
         )}
       </div>
+      {pop && (
+        <Suspense fallback={null}>
+          <MatchPop
+            match={byId.current.get(pop.m.id) ?? pop.m}
+            anchor={pop.el}
+            below={pop.below}
+            lang={lang}
+            closing={pop.closing}
+            onEnter={() => clearTimeout(closeTimer.current)}
+            onLeave={(e) => {
+              if (e.pointerType !== "mouse") return;
+              const to = (e.relatedTarget as Element | null)?.closest?.("[data-mid]");
+              if (!to) close(220);
+            }}
+            onClose={() => close()}
+            onGone={gone}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
+
 
 /**
  * Loads article pages before they are opened, so they appear at once:
