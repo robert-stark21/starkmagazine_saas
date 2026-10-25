@@ -238,6 +238,7 @@ type TickerConfig<T> = {
   isLive: (m: T) => boolean;
   Pop: React.ComponentType<PopProps<T>>;
   load: () => Promise<{ prefetch: (m: T) => void }>; // the popup module
+  clickOnly?: boolean; // open on click/tap only; close with ×, Escape or a press outside (not on mouse leave)
 };
 
 /**
@@ -405,11 +406,12 @@ function LiveTicker<T extends { id: string; pinned?: boolean }>(cfg: TickerConfi
     clearTimeout(closeTimer.current);
     if (popRef.current?.el === el && !popRef.current.closing) return;
     prefetch(el);
+    if (conf.current.clickOnly) return; // hovering only warms the data
     clearTimeout(openTimer.current);
     openTimer.current = setTimeout(() => openAt(el), popRef.current && !popRef.current.closing ? 70 : 150);
   };
   const onOut = (e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse") return;
+    if (e.pointerType !== "mouse" || conf.current.clickOnly) return;
     const from = (e.target as Element).closest("[data-mid]");
     const to = (e.relatedTarget as Element | null)?.closest?.("[data-mid], .mp-wrap");
     if (from && !to) {
@@ -497,7 +499,7 @@ function LiveTicker<T extends { id: string; pinned?: boolean }>(cfg: TickerConfi
             closing={pop.closing}
             onEnter={() => clearTimeout(closeTimer.current)}
             onLeave={(e) => {
-              if (e.pointerType !== "mouse") return;
+              if (e.pointerType !== "mouse" || cfg.clickOnly) return;
               const to = (e.relatedTarget as Element | null)?.closest?.("[data-mid]");
               if (!to) close(220);
             }}
@@ -638,7 +640,8 @@ type MovieItem = Movie & { id: string };
 
 /**
  * Hot songs on the Showbiz page: the top of Spotify's daily charts for Vietnam and the
- * world, alternating. Hover or tap a song for its music video and listening links.
+ * world, alternating. Click or tap a song for its music video and listening links (no
+ * hover: the panel stays until ×, Escape or a press outside).
  */
 export function SongTicker({ lang }: { lang: "vi" | "en" }) {
   const vi = lang === "vi";
@@ -647,6 +650,7 @@ export function SongTicker({ lang }: { lang: "vi" | "en" }) {
       lang={lang}
       path="/c/showbiz"
       api="/api/songs"
+      clickOnly
       ariaLabel={vi ? "Bài hát đang hot" : "Hot songs"}
       keep={() => true}
       isLive={() => false}
