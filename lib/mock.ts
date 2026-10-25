@@ -28,6 +28,10 @@ const SAMPLES: Record<string, { vi: string[]; en: string[] }> = {
     vi: [],
     en: ["How to write better microcopy for error states", "Designing accessible color systems", "Why your onboarding flow loses users", "A practical guide to design tokens"],
   },
+  showbiz: {
+    vi: ["Ca sĩ trẻ ra MV mới đạt top 1 thịnh hành", "Phim Việt cán mốc doanh thu trăm tỷ"],
+    en: ["Box office: a quiet weekend for new releases", "Pop star announces world tour dates"],
+  },
   esport: {
     vi: ["T1 vào tứ kết CKTG sau loạt Bo3 kịch tính", "Đội tuyển Việt Nam công bố đội hình dự giải quốc tế"],
     en: ["Worlds Swiss stage: day three recap", "The biggest game releases coming this month"],

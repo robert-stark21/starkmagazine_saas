@@ -379,6 +379,7 @@ const PROMO_STRONG = new RegExp(
     "^(?:xem thêm|đọc thêm|tin liên quan)\\s*:", "đăng ký nhận bản tin", "tải ứng dụng",
     "^[✦★►▶»•\\s]+xem thêm\\b", // RGB: "✦ Xem thêm cảm hứng nhà đẹp ... cùng ARC Vibes"
     "confirm your public display name", "please logout and then login again", "^follow topics and authors\\b", // PC Gamer comments, The Verge footer
+    "^đăng ký ngay để nhận gói tin", "sẽ gởi đến bạn những tin tức nổi bật", // Tuổi Trẻ newsletter box
   ].join("|"),
   "i"
 );

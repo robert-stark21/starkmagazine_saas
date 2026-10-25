@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getAllArticles, hasUntranslated, localize } from "@/lib/feeds";
 import { RefreshSoon } from "@/components/client";
@@ -6,6 +7,7 @@ import { warm } from "@/lib/warm";
 import { getCategory, MOODBOARD, SOURCES } from "@/lib/sources";
 import { getLang, UI } from "@/lib/lang";
 import { ArticleCard } from "@/components/ArticleCard";
+import { Charts } from "@/components/Charts";
 
 export const dynamic = "force-dynamic";
 
@@ -51,9 +53,15 @@ export default async function CategoryPage({
           <div className="chips">
             {chip(undefined, t.all)}
             {chip("vn", `🇻🇳 ${t.vn}`)}
-            {chip("intl", `🌐 ${t.intl}`)}
+            {/* Showbiz splits into Vietnam and the world. */}
+            {chip("intl", `🌐 ${slug === "showbiz" ? (lang === "vi" ? "Thế giới" : "World") : t.intl}`)}
           </div>
         </div>
+        {slug === "showbiz" && (
+          <Suspense fallback={<div className="charts charts-wait" aria-hidden="true" />}>
+            <Charts lang={lang} />
+          </Suspense>
+        )}
         {loc.length ? (
           <div className={moodboard ? "masonry" : "grid cat-grid"}>
             {loc.map((a, i) => (

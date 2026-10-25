@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CATEGORIES, type Lang } from "@/lib/sources";
 import { UI } from "@/lib/lang";
 import { getQuotes } from "@/lib/prices";
-import { CatNav, KindleToggle, LangToggle, LolTicker, PriceTicker, ScoreTicker } from "./client";
+import { CatNav, KindleToggle, LangToggle, LolTicker, MovieTicker, PriceTicker, ScoreTicker, SongTicker } from "./client";
 import { Logo } from "./Logo";
 
 export async function Header({ lang, updated, kindle }: { lang: Lang; updated: Date; kindle: boolean }) {
@@ -39,6 +39,8 @@ export async function Header({ lang, updated, kindle }: { lang: Lang; updated: D
     <PriceTicker initial={quotes} lang={lang} />
     <ScoreTicker lang={lang} />
     <LolTicker lang={lang} />
+    <SongTicker lang={lang} />
+    <MovieTicker lang={lang} />
     </>
   );
 }

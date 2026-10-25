@@ -7,6 +7,7 @@ import type { Quote } from "@/lib/prices";
 import { isVisible, type Match } from "@/lib/scores";
 import { isLolVisible, type LolMatch } from "@/lib/lol";
 import type { PopProps } from "./PopShell";
+import type { Movie, Song } from "@/lib/ent";
 
 export function LangToggle({ lang }: { lang: "vi" | "en" }) {
   const router = useRouter();
@@ -627,6 +628,71 @@ export function LolTicker({ lang }: { lang: "vi" | "en" }) {
           <span className="m-st live">G{Math.min(m.bestOf, m.teams[0].wins + m.teams[1].wins + 1)}</span>
         </>
       )}
+    />
+  );
+}
+
+const SongPop = lazy(() => import("./SongPop"));
+const MoviePop = lazy(() => import("./MoviePop"));
+type MovieItem = Movie & { id: string };
+
+/**
+ * Hot songs on the Showbiz page: the top of Spotify's daily charts for Vietnam and the
+ * world, alternating. Hover or tap a song for its music video and listening links.
+ */
+export function SongTicker({ lang }: { lang: "vi" | "en" }) {
+  const vi = lang === "vi";
+  return (
+    <LiveTicker<Song>
+      lang={lang}
+      path="/c/showbiz"
+      api="/api/songs"
+      ariaLabel={vi ? "Bài hát đang hot" : "Hot songs"}
+      keep={() => true}
+      isLive={() => false}
+      label={(s) => `#${s.rank} ${s.chart === "vn" ? "VN" : vi ? "Thế giới" : "Global"}: ${s.artist} – ${s.title}`}
+      Pop={SongPop}
+      load={() => import("./SongPop").then((x) => ({ prefetch: x.prefetchSong }))}
+      item={(s) => (
+        <>
+          <span className={`song-rank ${s.chart}`}>#{s.rank}<small>{s.chart === "vn" ? "VN" : "🌐"}</small></span>
+          {s.cover ? <img className="song-art" src={s.cover} width={22} height={22} alt="" decoding="async" /> : <span className="song-art" aria-hidden="true" />}
+          <b className="song-title">{s.title}</b>
+          <span className="song-artist">{s.artist}</span>
+        </>
+      )}
+      pin={() => null}
+    />
+  );
+}
+
+/**
+ * Films opening in Vietnamese cinemas this month, on the Film page. Hover or tap a film
+ * for its trailer and details.
+ */
+export function MovieTicker({ lang }: { lang: "vi" | "en" }) {
+  const vi = lang === "vi";
+  const day = (iso: string) => new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(iso));
+  const out = (iso: string) => Date.parse(iso) <= Date.now();
+  return (
+    <LiveTicker<MovieItem>
+      lang={lang}
+      path="/c/phim-anh"
+      api="/api/movies"
+      ariaLabel={vi ? "Phim ra rạp tháng này" : "In cinemas this month"}
+      keep={() => true}
+      isLive={() => false}
+      label={(m) => `${m.title}, ${vi ? "khởi chiếu" : "release"} ${day(m.release)}`}
+      Pop={MoviePop}
+      load={() => import("./MoviePop").then((x) => ({ prefetch: x.prefetchMovie }))}
+      item={(m) => (
+        <>
+          {m.poster ? <img className="mv-poster" src={m.poster} width={20} height={30} alt="" decoding="async" /> : <span className="mv-poster" aria-hidden="true" />}
+          <b className="mv-name">{m.title}</b>
+          <span className={`m-st${out(m.release) ? "" : " soon"}`}>{out(m.release) ? (vi ? "Đang chiếu" : "Showing") : day(m.release)}</span>
+        </>
+      )}
+      pin={() => null}
     />
   );
 }

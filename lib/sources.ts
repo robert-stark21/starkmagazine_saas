@@ -29,6 +29,7 @@ export const CATEGORIES: Category[] = [
   { slug: "ui-ux", vi: "UI/UX", en: "UI/UX", color: "#db2777" },
   { slug: "kien-truc", vi: "Kiến trúc", en: "Architecture", color: "#a16207" },
   { slug: "phim-anh", vi: "Phim ảnh", en: "Film", color: "#0891b2" },
+  { slug: "showbiz", vi: "Showbiz", en: "Showbiz", color: "#be123c" },
   { slug: "inspiration", vi: "Inspiration", en: "Inspiration", color: "#ea580c" },
   { slug: "quang-cao", vi: "Quảng cáo", en: "Advertising", color: "#4f46e5" },
 ];
@@ -83,6 +84,17 @@ export const SOURCES: Source[] = [
   { name: "Rock Paper Shotgun", url: "https://www.rockpapershotgun.com/feed", category: "esport", lang: "en", region: "intl" },
   { name: "Thanh Niên Game", url: "https://thanhnien.vn/rss/cong-nghe/game.rss", category: "esport", lang: "vi", region: "vn" },
   { name: "Gamelade", url: "https://gamelade.vn/feed/", category: "esport", lang: "vi", region: "vn" },
+
+  // Showbiz: Vietnamese and international entertainment news (People blocks bots; E! is mostly photo credits)
+  { name: "VnExpress Giải trí", url: "https://vnexpress.net/rss/giai-tri.rss", category: "showbiz", lang: "vi", region: "vn" },
+  { name: "Thanh Niên Giải trí", url: "https://thanhnien.vn/rss/giai-tri.rss", category: "showbiz", lang: "vi", region: "vn" },
+  { name: "Tuổi Trẻ Giải trí", url: "https://tuoitre.vn/rss/giai-tri.rss", category: "showbiz", lang: "vi", region: "vn" },
+  { name: "Kenh14 Star", url: "https://kenh14.vn/star.rss", category: "showbiz", lang: "vi", region: "vn" },
+  { name: "Variety", url: "https://variety.com/feed/", category: "showbiz", lang: "en", region: "intl" },
+  { name: "The Hollywood Reporter", url: "https://www.hollywoodreporter.com/feed/", category: "showbiz", lang: "en", region: "intl" },
+  { name: "Billboard", url: "https://www.billboard.com/feed/", category: "showbiz", lang: "en", region: "intl" },
+  { name: "Deadline", url: "https://deadline.com/feed/", category: "showbiz", lang: "en", region: "intl" },
+  { name: "Rolling Stone", url: "https://www.rollingstone.com/feed/", category: "showbiz", lang: "en", region: "intl" },
 
   // Design
   { name: "Dezeen", url: "https://www.dezeen.com/feed/", category: "kien-truc", lang: "en", region: "intl" },
