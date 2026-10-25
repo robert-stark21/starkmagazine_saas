@@ -175,5 +175,30 @@ async function colorme(url: string): Promise<ScrapedItem[]> {
   return items.sort((x, y) => y.published.localeCompare(x.published));
 }
 
-export const SCRAPERS = { awwwards, cssda, uxfoundation, uxmatters, colorme } as const;
+/** Moveek film news and reviews (no feed): title, picture, excerpt and the posting time (Vietnam time). */
+async function moveek(url: string): Promise<ScrapedItem[]> {
+  const doc: any = await page(url);
+  const out: ScrapedItem[] = [];
+  for (const box of Array.from(doc.querySelectorAll("div.article")) as any[]) {
+    const a = box.querySelector('h4 a[href^="/bai-viet/"], a.name[href^="/bai-viet/"]') ?? box.querySelector('a[href^="/bai-viet/"]');
+    const href = a?.getAttribute("href");
+    const title = text(box.querySelector("h4") ?? a);
+    if (!href || !title || out.some((o) => o.link === new URL(href, url).href)) continue;
+    const img = box.querySelector("img");
+    const srcset: string = img?.getAttribute("data-srcset") ?? "";
+    const big = srcset.split(",").map((s) => s.trim().split(/\s+/)[0]).filter(Boolean).pop() ?? img?.getAttribute("data-src");
+    const when = box.querySelector("time")?.getAttribute("datetime");
+    const date = when ? Date.parse(when.replace(" ", "T") + "+07:00") : NaN;
+    out.push({
+      title,
+      link: new URL(href, url).href,
+      image: big && !/facebook-share-thumb/.test(big) ? big.replace("/cache/medium/", "/cache/large/").replace("/cache/small/", "/cache/large/") : undefined, // the large size is sharp
+      excerpt: (Array.from(box.querySelectorAll("p")) as any[]).map(text).find((t) => t.length > 40) ?? "",
+      published: Number.isFinite(date) ? new Date(date).toISOString() : vnDayStart(out.length),
+    });
+  }
+  return out;
+}
+
+export const SCRAPERS = { awwwards, cssda, uxfoundation, uxmatters, colorme, moveek } as const;
 export type ScraperName = keyof typeof SCRAPERS;

@@ -3,15 +3,17 @@ import { getCharts, songLinks, type Song } from "@/lib/ent";
 /**
  * Music charts on the Showbiz page, pinned under the title: Spotify's daily top 10 for
  * Vietnam and the world. Each song opens on YouTube, with a Zing MP3 link beside it.
- * A chart whose source fails is left out.
+ * A chart whose source fails is left out. The region filter folds away the other chart:
+ * both panels stay in the page and CSS animates the change, so switching is smooth.
  */
-export async function Charts({ lang }: { lang: "vi" | "en" }) {
+export async function Charts({ lang, region }: { lang: "vi" | "en"; region?: string }) {
   const { vn, global } = await getCharts();
   if (!vn.length && !global.length) return null;
   const vi = lang === "vi";
-  const panel = (title: string, songs: Song[]) =>
+  const show = region === "vn" || region === "intl" ? region : "all";
+  const panel = (title: string, songs: Song[], which: "vn" | "intl") =>
     songs.length > 0 && (
-      <section className="chart" aria-label={title}>
+      <section className={`chart ${which}`} aria-label={title} aria-hidden={show !== "all" && show !== which ? true : undefined}>
         <h2 className="chart-h">
           {title} <span>Spotify · {vi ? "hằng ngày" : "daily"}</span>
         </h2>
@@ -37,9 +39,9 @@ export async function Charts({ lang }: { lang: "vi" | "en" }) {
       </section>
     );
   return (
-    <div className="charts">
-      {panel(vi ? "BXH Việt Nam" : "Vietnam Top 10", vn)}
-      {panel(vi ? "BXH Thế giới" : "Global Top 10", global)}
+    <div className="charts" data-show={show}>
+      {panel(vi ? "BXH Việt Nam" : "Vietnam Top 10", vn, "vn")}
+      {panel(vi ? "BXH Thế giới" : "Global Top 10", global, "intl")}
     </div>
   );
 }

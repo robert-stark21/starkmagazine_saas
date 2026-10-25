@@ -125,6 +125,9 @@ export const SOURCES: Source[] = [
   { name: "Architectural Digest", url: "https://www.architecturaldigest.com/feed/rss", category: "kien-truc", lang: "en", region: "intl" },
 
   // Phim ảnh
+  // Moveek: film news and reviews from its listing pages (no feed).
+  { name: "Moveek", url: "https://moveek.com/tin-tuc/", category: "phim-anh", lang: "vi", region: "vn", scrape: "moveek" },
+  { name: "Moveek", url: "https://moveek.com/danh-gia-phim/", category: "phim-anh", lang: "vi", region: "vn", scrape: "moveek" },
   { name: "Tuổi Trẻ Điện ảnh", url: "https://tuoitre.vn/rss/dien-anh.rss", category: "phim-anh", lang: "vi", region: "vn" },
   { name: "RGB", url: "https://rgb.vn/category/news/entertaiment/feed/", category: "phim-anh", lang: "vi", region: "vn" },
   { name: "Thanh Niên Phim", url: "https://thanhnien.vn/rss/giai-tri/phim.rss", category: "phim-anh", lang: "vi", region: "vn" },

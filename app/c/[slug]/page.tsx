@@ -59,7 +59,7 @@ export default async function CategoryPage({
         </div>
         {slug === "showbiz" && (
           <Suspense fallback={<div className="charts charts-wait" aria-hidden="true" />}>
-            <Charts lang={lang} />
+            <Charts lang={lang} region={r} />
           </Suspense>
         )}
         {loc.length ? (

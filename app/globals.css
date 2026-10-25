@@ -763,7 +763,7 @@ a, button { touch-action: manipulation; }
 .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 4px 0 26px; }
 .charts-wait { min-height: 290px; }
 .chart { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 14px 14px 10px; min-width: 0; }
-.chart-h { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 15px; font-weight: 800; }
+.chart-h { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 15px; font-weight: 800; white-space: nowrap; }
 .chart-h span { font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .chart-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-rows: repeat(5, auto); grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); column-gap: 14px; }
 .chart-row { display: flex; align-items: center; gap: 6px; min-width: 0; border-bottom: 1px solid var(--line); }
@@ -789,3 +789,24 @@ a, button { touch-action: manipulation; }
   .chart-row { scroll-snap-align: start; }
 }
 .kindle .chart-mv.up, .kindle .chart-mv.down, .kindle .chart-mv.new { color: var(--text); }
+
+/* Charts follow the region filter: the other chart folds away (width on desktop, height on
+   phones where the panels are stacked) while the remaining one grows to fill the row. */
+.charts { column-gap: 18px; row-gap: 18px; transition: grid-template-columns .55s var(--ease-out), grid-template-rows .55s var(--ease-out), column-gap .55s var(--ease-out), row-gap .55s var(--ease-out); }
+.chart { overflow: hidden; transition: opacity .35s ease .1s, transform .5s var(--ease-out), visibility 0s, padding .55s var(--ease-out), border-width .55s var(--ease-out); }
+.charts[data-show="vn"] { grid-template-columns: 1fr 0fr; column-gap: 0; }
+.charts[data-show="intl"] { grid-template-columns: 0fr 1fr; column-gap: 0; }
+.charts[data-show="vn"] .chart.intl, .charts[data-show="intl"] .chart.vn {
+  opacity: 0; transform: scale(.96); visibility: hidden; padding-left: 0; padding-right: 0; border-left-width: 0; border-right-width: 0;
+  transition: opacity .2s ease, transform .45s var(--ease-out), visibility 0s .55s, padding .55s var(--ease-out), border-width .55s var(--ease-out);
+}
+@media (max-width: 960px) {
+  .charts { grid-template-rows: 1fr 1fr; }
+  .charts[data-show="vn"], .charts[data-show="intl"] { grid-template-columns: 1fr; row-gap: 0; }
+  .charts[data-show="vn"] { grid-template-rows: 1fr 0fr; }
+  .charts[data-show="intl"] { grid-template-rows: 0fr 1fr; }
+  .charts[data-show="vn"] .chart.intl, .charts[data-show="intl"] .chart.vn { padding: 0 14px; border-top-width: 0; border-bottom-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .charts, .chart, .charts .chart.vn, .charts .chart.intl { transition: none !important; }
+}
