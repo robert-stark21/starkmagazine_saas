@@ -24,6 +24,7 @@ export const CATEGORIES: Category[] = [
   { slug: "crypto", vi: "Crypto", en: "Crypto", color: "#f59e0b" },
   { slug: "tai-chinh", vi: "Tài chính", en: "Finance", color: "#059669" },
   { slug: "the-thao", vi: "Thể thao", en: "Sports", color: "#dc2626" },
+  { slug: "esport", vi: "E-sport", en: "Esports", color: "#65a30d" },
   { slug: "design", vi: "Design", en: "Design", color: "#9333ea" },
   { slug: "ui-ux", vi: "UI/UX", en: "UI/UX", color: "#db2777" },
   { slug: "kien-truc", vi: "Kiến trúc", en: "Architecture", color: "#a16207" },
@@ -69,6 +70,19 @@ export const SOURCES: Source[] = [
   { name: "The Independent Football", url: "https://www.independent.co.uk/sport/football/rss", category: "the-thao", lang: "en", region: "intl" },
   { name: "Daily Mail Football", url: "https://www.dailymail.co.uk/sport/football/index.rss", category: "the-thao", lang: "en", region: "intl" },
   { name: "Football Italia", url: "https://football-italia.net/feed/", category: "the-thao", lang: "en", region: "intl" },
+
+  // E-sport: esports and gaming news (IGN, Dot Esports and GameSpot block bots).
+  // GameK: its Esport and PC-Console feeds; the home and Mobile-Social feeds are mostly gossip.
+  { name: "GameK", url: "https://gamek.vn/esport.rss", category: "esport", lang: "vi", region: "vn" },
+  { name: "GameK", url: "https://gamek.vn/pc-console.rss", category: "esport", lang: "vi", region: "vn" },
+  { name: "Dexerto", url: "https://www.dexerto.com/feed/", category: "esport", lang: "en", region: "intl" },
+  { name: "Esports Insider", url: "https://esportsinsider.com/feed", category: "esport", lang: "en", region: "intl" },
+  { name: "PC Gamer", url: "https://www.pcgamer.com/rss/", category: "esport", lang: "en", region: "intl" },
+  { name: "The Verge", url: "https://www.theverge.com/rss/games/index.xml", category: "esport", lang: "en", region: "intl" },
+  { name: "Eurogamer", url: "https://www.eurogamer.net/feed", category: "esport", lang: "en", region: "intl" },
+  { name: "Rock Paper Shotgun", url: "https://www.rockpapershotgun.com/feed", category: "esport", lang: "en", region: "intl" },
+  { name: "Thanh Niên Game", url: "https://thanhnien.vn/rss/cong-nghe/game.rss", category: "esport", lang: "vi", region: "vn" },
+  { name: "Gamelade", url: "https://gamelade.vn/feed/", category: "esport", lang: "vi", region: "vn" },
 
   // Design
   { name: "Dezeen", url: "https://www.dezeen.com/feed/", category: "kien-truc", lang: "en", region: "intl" },

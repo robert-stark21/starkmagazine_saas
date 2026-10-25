@@ -127,7 +127,9 @@ async function fetchSource(src: Source): Promise<Article[]> {
   const xml = decodeBody(new Uint8Array(await res.arrayBuffer()), res.headers.get("content-type")).replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g, "&amp;");
   const feed = await parser.parseString(xml);
   const items: Article[] = (feed.items ?? []).slice(0, 20).flatMap((item) => {
-    const link = item.link?.trim();
+    let link = item.link?.trim();
+    // GameK's feeds link through a tracking host (cl44.cnnd.vn) that refuses visitors: use the site itself.
+    if (link && /^https?:\/\/[^/]+\.cnnd\.vn\//.test(link)) link = new URL(src.url).origin + new URL(link).pathname;
     const title = stripHtml(item.title ?? "");
     if (!link || !title || NOT_ARTICLE.test(link)) return [];
     const text = stripHtml(item.contentEncoded || item.content || item.description || item.contentSnippet || "");

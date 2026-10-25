@@ -5,6 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { imgSrc } from "@/lib/img";
 import type { Quote } from "@/lib/prices";
 import { isVisible, type Match } from "@/lib/scores";
+import { isLolVisible, type LolMatch } from "@/lib/lol";
+import type { PopProps } from "./PopShell";
 
 export function LangToggle({ lang }: { lang: "vi" | "en" }) {
   const router = useRouter();
@@ -216,49 +218,65 @@ export function LeagueLogo({ league }: { league: Match["league"] }) {
   );
 }
 
-// The match popup is a separate chunk, fetched only on the Sports page.
+// Ticker popups are separate chunks, fetched only on their page.
 const MatchPop = lazy(() => import("./MatchPop"));
-const popModule = () => import("./MatchPop");
+const LolPop = lazy(() => import("./LolPop"));
 
 const SPEED = 40; // px per second
 const HOLD = 2000; // ms of stillness after a drag before the row moves again
 
+type TickerConfig<T> = {
+  lang: "vi" | "en";
+  path: string; // the one page that shows this ticker
+  api: string; // polled every 30 seconds; answers { matches: T[] }
+  ariaLabel: string;
+  keep: (m: T) => boolean; // still worth showing (drops results older than 24h)
+  item: (m: T) => React.ReactNode; // inside of one item
+  pin: (m: T) => React.ReactNode; // inside of the pinned live item
+  label: (m: T) => string;
+  isLive: (m: T) => boolean;
+  Pop: React.ComponentType<PopProps<T>>;
+  load: () => Promise<{ prefetch: (m: T) => void }>; // the popup module
+};
+
 /**
- * Results ticker on the Sports page: UCL, UEL, Premier League, La Liga, Serie A and
- * V-League, from yesterday to tomorrow. Live first, then results, then upcoming. A live
- * Real Madrid or AC Milan match is pinned on the left, outside the scrolling part.
+ * Live results ticker under the menu (football on Sports, LoL on E-sport). Live first, then
+ * results, then upcoming; a live match of a followed team is pinned on the left.
  *
  * The row moves by script (one position shared by auto-scroll and dragging): it can be
  * grabbed and thrown left or right with a little momentum, and waits 2 seconds before
  * moving on. Hovering a match (desktop) or tapping it opens its details panel.
  */
-export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
-  const show = usePathname() === "/c/the-thao";
-  const [matches, setMatches] = useState<Match[] | null>(null); // null while loading
+function LiveTicker<T extends { id: string; pinned?: boolean }>(cfg: TickerConfig<T>) {
+  const { lang } = cfg;
+  const show = usePathname() === cfg.path;
+  const [matches, setMatches] = useState<T[] | null>(null); // null while loading
   const track = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLDivElement>(null);
+  const conf = useRef(cfg);
+  conf.current = cfg;
   useEffect(() => {
     if (!show) return;
     let stop = false;
     const load = () =>
-      fetch("/api/scores")
+      fetch(conf.current.api)
         .then((r) => (r.ok ? r.json() : Promise.reject()))
-        .then((d) => { if (!stop) setMatches(Array.isArray(d?.matches) ? d.matches.filter((m: Match) => isVisible(m)) : []); })
+        .then((d) => { if (!stop) setMatches(Array.isArray(d?.matches) ? d.matches.filter((m: T) => conf.current.keep(m)) : []); })
         .catch(() => { if (!stop) setMatches((m) => m ?? []); });
     load();
     const t = setInterval(load, 30_000);
     // Fetch the popup code while the browser is idle, so the first hover opens at once.
-    const idle = setTimeout(() => popModule().catch(() => {}), 1500);
+    const idle = setTimeout(() => conf.current.load().catch(() => {}), 1500);
     return () => { stop = true; clearInterval(t); clearTimeout(idle); };
   }, [show]);
   const list = (matches ?? []).filter((m) => !m.pinned);
-  const byId = useRef(new Map<string, Match>());
+  const byId = useRef(new Map<string, T>());
   byId.current = new Map((matches ?? []).map((m) => [m.id, m]));
   useTickerFade(row, show);
 
   // ---- popup state ----
-  const [pop, setPop] = useState<{ m: Match; el: HTMLElement; below: number; closing: boolean } | null>(null);
+  const [pop, setPop] = useState<{ m: T; el: HTMLElement; below: number; closing: boolean } | null>(null);
   const popRef = useRef(pop);
   popRef.current = pop;
   const openTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -279,7 +297,7 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
   const gone = useCallback(() => setPop((p) => (p?.closing ? null : p)), []);
   const prefetch = (el: HTMLElement) => {
     const m = byId.current.get(el.dataset.mid ?? "");
-    if (m) popModule().then((x) => x.prefetchMatch(m)).catch(() => {});
+    if (m) conf.current.load().then((x) => x.prefetch(m)).catch(() => {});
   };
 
   // Close on Escape, a press outside, page scroll or a resize.
@@ -417,39 +435,20 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
   // While loading the row keeps its height so the page does not jump; with no data it hides.
   if (!show || (matches && !matches.length)) return null;
 
-  const vi = lang === "vi";
   const pinned = (matches ?? []).find((m) => m.pinned);
-  const time = (iso: string) => {
-    const d = new Date(iso);
-    const hm = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" }).format(d);
-    const day = (t: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(t);
-    const tomorrow = day(d) === day(new Date(Date.now() + 86_400_000));
-    return tomorrow ? `${vi ? "Mai" : "Tmrw"} ${hm}` : hm;
-  };
-  const status = (m: Match) =>
-    m.state === "live" ? (
-      <span className="m-st live"><i className="m-dot" />{m.minute}</span>
-    ) : m.state === "post" ? (
-      <span className="m-st">FT</span>
-    ) : (
-      <span className="m-st">{time(m.kickoff)}</span>
-    );
   const active = pop && !pop.closing ? pop.el : null;
-  const item = (m: Match, k: string, copy: boolean) => (
+  const Pop = cfg.Pop;
+  const item = (m: T, k: string, copy: boolean) => (
     <span
-      className={`tick match${m.state === "live" ? " is-live" : ""}`}
+      className={`tick match${cfg.isLive(m) ? " is-live" : ""}`}
       key={k}
       data-mid={m.id}
       role="button"
       tabIndex={copy ? -1 : 0}
-      aria-label={`${m.home} ${m.state === "pre" ? "–" : `${m.hs}–${m.as}`} ${m.away}`}
+      aria-label={cfg.label(m)}
       aria-expanded={active?.dataset.mid === m.id ? true : undefined}
     >
-      <LeagueLogo league={m.league} />
-      <span className="m-tm">{m.home}</span>
-      <b className="m-sc">{m.state === "pre" ? "–" : `${m.hs}–${m.as}`}</b>
-      <span className="m-tm">{m.away}</span>
-      {status(m)}
+      {cfg.item(m)}
     </span>
   );
   return (
@@ -457,7 +456,7 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
       className={`ticker scores${pop && !pop.closing ? " has-pop" : ""}`}
       ref={row}
       role="region"
-      aria-label={vi ? "Kết quả bóng đá" : "Football scores"}
+      aria-label={cfg.ariaLabel}
       onPointerOver={onOver}
       onPointerOut={onOut}
       onPointerEnter={(e) => e.pointerType === "mouse" && (motion.current.hover = true)}
@@ -466,19 +465,9 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
       onKeyDown={onKeyDown}
     >
       {pinned && (
-        <div
-          className="pin"
-          data-mid={pinned.id}
-          role="button"
-          tabIndex={0}
-          title={`${pinned.home} ${pinned.hs}–${pinned.as} ${pinned.away}`}
-        >
+        <div className="pin" data-mid={pinned.id} role="button" tabIndex={0} title={cfg.label(pinned)}>
           <span className="live-badge">LIVE</span>
-          <LeagueLogo league={pinned.league} />
-          <span className="pin-tm">{pinned.homeAbbr || pinned.home}</span>
-          <b className="m-sc">{pinned.hs}–{pinned.as}</b>
-          <span className="pin-tm">{pinned.awayAbbr || pinned.away}</span>
-          <span className="m-st live">{pinned.minute}</span>
+          {cfg.pin(pinned)}
         </div>
       )}
       <div
@@ -499,7 +488,7 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
       </div>
       {pop && (
         <Suspense fallback={null}>
-          <MatchPop
+          <Pop
             match={byId.current.get(pop.m.id) ?? pop.m}
             anchor={pop.el}
             below={pop.below}
@@ -520,6 +509,127 @@ export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
   );
 }
 
+/** Kick-off time in Vietnam; "Mai 02:00" for tomorrow. */
+function tickTime(iso: string, vi: boolean) {
+  const d = new Date(iso);
+  const hm = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" }).format(d);
+  const day = (t: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(t);
+  const tomorrow = day(d) === day(new Date(Date.now() + 86_400_000));
+  return tomorrow ? `${vi ? "Mai" : "Tmrw"} ${hm}` : hm;
+}
+
+/**
+ * Results ticker on the Sports page: UCL, UEL, Premier League, La Liga, Serie A and
+ * V-League, from yesterday to tomorrow. A live Real Madrid or AC Milan match is pinned.
+ */
+export function ScoreTicker({ lang }: { lang: "vi" | "en" }) {
+  const vi = lang === "vi";
+  const score = (m: Match) => (m.state === "pre" ? "–" : `${m.hs}–${m.as}`);
+  return (
+    <LiveTicker<Match>
+      lang={lang}
+      path="/c/the-thao"
+      api="/api/scores"
+      ariaLabel={vi ? "Kết quả bóng đá" : "Football scores"}
+      keep={(m) => isVisible(m)}
+      isLive={(m) => m.state === "live"}
+      label={(m) => `${m.home} ${score(m)} ${m.away}`}
+      Pop={MatchPop}
+      load={() => import("./MatchPop").then((x) => ({ prefetch: x.prefetchMatch }))}
+      item={(m) => (
+        <>
+          <LeagueLogo league={m.league} />
+          <span className="m-tm">{m.home}</span>
+          <b className="m-sc">{score(m)}</b>
+          <span className="m-tm">{m.away}</span>
+          {m.state === "live" ? (
+            <span className="m-st live"><i className="m-dot" />{m.minute}</span>
+          ) : (
+            <span className="m-st">{m.state === "post" ? "FT" : tickTime(m.kickoff, vi)}</span>
+          )}
+        </>
+      )}
+      pin={(m) => (
+        <>
+          <LeagueLogo league={m.league} />
+          <span className="pin-tm">{m.homeAbbr || m.home}</span>
+          <b className="m-sc">{m.hs}–{m.as}</b>
+          <span className="pin-tm">{m.awayAbbr || m.away}</span>
+          <span className="m-st live">{m.minute}</span>
+        </>
+      )}
+    />
+  );
+}
+
+/** LoL league badge: the league's own logo on a dark tile (most are made for dark backgrounds). */
+export const LOL_LOGOS: Record<LolMatch["league"], { name: string; src: string }> = {
+  first_stand: { name: "First Stand", src: "https://static.lolesports.com/leagues/1740042025201_RG_LOL_FIRST_STAND_LOGO_VOLT_ALPHA.png" },
+  lck: { name: "LCK", src: "https://static.lolesports.com/leagues/lck-color-on-black.png" },
+  lcp: { name: "LCP", src: "https://static.lolesports.com/leagues/1733468139601_lcp-color-golden.png" },
+  lpl: { name: "LPL", src: "https://static.lolesports.com/leagues/1592516115322_LPL-01-FullonDark.png" },
+  msi: { name: "MSI", src: "https://static.lolesports.com/leagues/1592594634248_MSIDarkBG.png" },
+  worlds: { name: "Worlds", src: "https://static.lolesports.com/leagues/1592594612171_WorldsDarkBG.png" },
+};
+export function LolBadge({ src, name, size = 18 }: { src?: string; name: string; size?: number }) {
+  const [ok, setOk] = useState(true);
+  return (
+    <span className="lol-tile" style={{ width: size, height: size }} title={name}>
+      {src && ok ? <img src={src} width={size - 4} height={size - 4} alt="" decoding="async" onError={() => setOk(false)} /> : <i>{name.slice(0, 1)}</i>}
+    </span>
+  );
+}
+
+/**
+ * LoL Esports ticker on the E-sport page: First Stand, LCK, LCP, LPL, MSI and Worlds. Series
+ * score (games won), best-of, live / FT / start time. A live T1 match is pinned.
+ */
+export function LolTicker({ lang }: { lang: "vi" | "en" }) {
+  const vi = lang === "vi";
+  const score = (m: LolMatch) => (m.state === "pre" ? "–" : `${m.teams[0].wins}–${m.teams[1].wins}`);
+  const team = (t: LolMatch["teams"][number], win: boolean) => (
+    <span className={`lol-tm${win ? " win" : ""}`}>
+      <LolBadge src={t.image} name={t.name} />
+      {t.code}
+    </span>
+  );
+  return (
+    <LiveTicker<LolMatch>
+      lang={lang}
+      path="/c/esport"
+      api="/api/lol"
+      ariaLabel={vi ? "Lịch thi đấu và kết quả LMHT" : "League of Legends esports"}
+      keep={(m) => isLolVisible(m)}
+      isLive={(m) => m.state === "live"}
+      label={(m) => `${LOL_LOGOS[m.league].name}: ${m.teams[0].code} ${score(m)} ${m.teams[1].code} (Bo${m.bestOf})`}
+      Pop={LolPop}
+      load={() => import("./LolPop").then((x) => ({ prefetch: x.prefetchLol }))}
+      item={(m) => (
+        <>
+          <LolBadge src={LOL_LOGOS[m.league].src} name={LOL_LOGOS[m.league].name} />
+          {team(m.teams[0], m.teams[0].outcome === "win")}
+          <b className="m-sc">{score(m)}</b>
+          {team(m.teams[1], m.teams[1].outcome === "win")}
+          {m.state === "live" ? (
+            <span className="m-st live"><i className="m-dot" />LIVE</span>
+          ) : (
+            <span className="m-st">{m.state === "post" ? "FT" : tickTime(m.start, vi)}</span>
+          )}
+          <span className="lol-bo">Bo{m.bestOf}</span>
+        </>
+      )}
+      pin={(m) => (
+        <>
+          <LolBadge src={LOL_LOGOS[m.league].src} name={LOL_LOGOS[m.league].name} />
+          <span className="pin-tm">{m.teams[0].code}</span>
+          <b className="m-sc">{m.teams[0].wins}–{m.teams[1].wins}</b>
+          <span className="pin-tm">{m.teams[1].code}</span>
+          <span className="m-st live">G{Math.min(m.bestOf, m.teams[0].wins + m.teams[1].wins + 1)}</span>
+        </>
+      )}
+    />
+  );
+}
 
 /**
  * Loads article pages before they are opened, so they appear at once:

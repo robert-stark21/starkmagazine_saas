@@ -378,6 +378,7 @@ const PROMO_STRONG = new RegExp(
     "^read (?:more|next)\\b", "^published: .{0,40}\\d{4}", "^related:", "\\bdownload (?:the|our) app\\b", "\\bclick here\\b", "\\bafter newsletter promotion\\b", "\\byou'll now receive updates\\b", "^cite: ", "^by\\s*•.{0,40}min read", // IxDF: "by • 1 week ago • 20 min read"
     "^(?:xem thêm|đọc thêm|tin liên quan)\\s*:", "đăng ký nhận bản tin", "tải ứng dụng",
     "^[✦★►▶»•\\s]+xem thêm\\b", // RGB: "✦ Xem thêm cảm hứng nhà đẹp ... cùng ARC Vibes"
+    "confirm your public display name", "please logout and then login again", "^follow topics and authors\\b", // PC Gamer comments, The Verge footer
   ].join("|"),
   "i"
 );

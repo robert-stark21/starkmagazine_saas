@@ -680,3 +680,39 @@ a, button { touch-action: manipulation; }
 .kindle .mp-card.yellow { background: transparent; outline: 1.5px solid var(--text); outline-offset: -1.5px; }
 .kindle .mp-card.red { background: var(--text); }
 .kindle .mp-card2 .red { outline: 1.5px solid var(--surface); }
+
+/* ---------- E-sport: LoL ticker and popup ---------- */
+/* League and team logos are mostly drawn for dark backgrounds: a small dark tile behind them. */
+.lol-tile { flex: none; display: inline-grid; place-items: center; border-radius: 5px; background: #17171c; overflow: hidden; }
+.lol-tile img { object-fit: contain; }
+.lol-tile i { font-style: normal; font-size: 10px; font-weight: 800; color: #e4e4e7; }
+.lol-tm { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.lol-tm.win { font-weight: 800; }
+.lol-bo { font-size: 11px; color: var(--muted); font-weight: 600; }
+.mp-team .lol-tile { border-radius: 10px; }
+.mp-tname { color: var(--muted); font-size: 11.5px; line-height: 1.2; }
+.mp-team.lol-win b { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+.mp-score { display: flex; flex-direction: column; align-items: center; }
+.mp-bo { margin-top: 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--muted); }
+.lg-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.lg-row { display: grid; grid-template-columns: 52px 1fr 76px 1fr; align-items: center; row-gap: 2px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.lg-row:last-child { border-bottom: 0; }
+.lg-n { color: var(--muted); font-size: 12px; font-weight: 600; }
+.lg-team { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.lg-team.r { justify-content: flex-end; }
+.lg-team b { font-weight: 600; padding-left: 8px; border-left: 3px solid transparent; }
+.lg-team.r b { padding: 0 8px 0 0; border-left: 0; border-right: 3px solid transparent; }
+.lg-team.blue b { border-color: #3b82f6; }
+.lg-team.red b { border-color: #ef4444; }
+.lg-team.win b { font-weight: 800; }
+.lg-won { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.lg-mid { display: flex; flex-direction: column; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
+.lg-mid b { font-weight: 800; }
+.lg-state { font-size: 11.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+.lg-state.live { color: #dc2626; font-weight: 700; }
+.lg-sub { grid-column: 2 / -1; text-align: center; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (prefers-color-scheme: dark) { .lg-state.live { color: #f87171; } }
+@media (max-width: 760px) { .lol-bo { display: none; } .lg-row { grid-template-columns: 44px 1fr 64px 1fr; } }
+.kindle .lol-tile { background: var(--text); }
+.kindle .lg-team.blue b, .kindle .lg-team.red b { border-color: var(--muted); }
+.kindle .lg-state.live { color: var(--text); }
