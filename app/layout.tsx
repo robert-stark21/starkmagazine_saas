@@ -14,9 +14,24 @@ const manrope = Manrope({ subsets: ["latin", "latin-ext", "vietnamese"], display
 // the browser only fetches it when Kindle mode actually uses it.
 const literata = Literata({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-reading", preload: false });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
+
 export const metadata: Metadata = {
+  // Absolute base for share links (Open Graph); set NEXT_PUBLIC_SITE_URL to the real domain.
+  metadataBase: new URL(SITE_URL),
   title: "STARK · Tin tức tổng hợp",
   description: "Công nghệ, crypto, tài chính, thể thao, design, UI/UX và kiến trúc, cập nhật mỗi 10 phút.",
+  openGraph: {
+    siteName: "STARK",
+    type: "website",
+    locale: "vi_VN",
+    title: "STARK · Tin tức tổng hợp",
+    description: "Công nghệ, crypto, tài chính, thể thao, design, UI/UX và kiến trúc, cập nhật mỗi 10 phút.",
+    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "STARK" }],
+  },
+  twitter: { card: "summary" },
 };
 
 export const viewport: Viewport = {

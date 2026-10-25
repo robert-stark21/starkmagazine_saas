@@ -1,4 +1,5 @@
 import { Suspense, type ReactNode } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAllArticles, getArticle, localize, type Article } from "@/lib/feeds";
@@ -14,6 +15,37 @@ import { BlurText } from "@/components/BlurText";
 import { imageSrcSet, imgSrc, SIZES } from "@/lib/img";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Share preview (Open Graph / Twitter card): when the link is pasted into Messenger, Zalo,
+ * Facebook, Slack… it shows the article's title, a short description and its thumbnail.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const article = await getArticle(id);
+  if (!article) return {};
+  const lang = await getLang();
+  const [a] = await localize([article], lang, 1500);
+  const title = a.title;
+  const description = (a.excerpt || "").slice(0, 200) || undefined;
+  const images = article.image ? [{ url: article.image, alt: title }] : undefined;
+  return {
+    title: `${title} · STARK`,
+    description,
+    openGraph: {
+      type: "article",
+      siteName: "STARK",
+      locale: lang === "vi" ? "vi_VN" : "en_US",
+      url: `/a/${id}`,
+      title,
+      description,
+      publishedTime: article.published,
+      ...(images ? { images } : {}),
+    },
+    twitter: { card: images ? "summary_large_image" : "summary", title, description, ...(images ? { images: images.map((i) => i.url) } : {}) },
+    alternates: { canonical: `/a/${id}` },
+  };
+}
 
 /**
  * Editorial layout: a large headline and hero image on top, then a narrow meta column
