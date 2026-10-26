@@ -1,6 +1,6 @@
 import Parser from "rss-parser";
 import { CATEGORIES, SOURCES, type Lang, type Source } from "./sources";
-import { excerpt, stripHtml, toId } from "./text";
+import { excerpt, fromId, stripHtml, toId } from "./text";
 import { translateMany } from "./translate";
 import { videoFromUrl } from "./fulltext";
 import { mockArticles } from "./mock";
@@ -273,7 +273,80 @@ export function lastUpdated(): Date {
 }
 
 export async function getArticle(id: string): Promise<Article | undefined> {
-  return (await getAllArticles()).find((a) => a.id === id);
+  const all = await getAllArticles();
+  return all.find((a) => a.id === id) ?? recoverArticle(id, all);
+}
+
+/** "vnexpress.net" for "e.vnexpress.net", "tapchikientruc.com.vn" for "www.tapchikientruc.com.vn". */
+function baseDomain(host: string): string {
+  const parts = host.toLowerCase().replace(/^www\./, "").split(".");
+  const n = parts.length >= 3 && /^(com|net|org|co|gov|edu|ac)$/.test(parts[parts.length - 2]) ? 3 : 2;
+  return parts.slice(-n).join(".");
+}
+
+const recovered = new Map<string, Article | null>();
+
+/**
+ * An article that isn't in this server's current feed list: it dropped out of its feed, or
+ * this server instance (Vercel runs several) fetched the feeds when that source failed.
+ * The id is the article's link, so rebuild the card from the page's own meta tags.
+ * Only links on the sites we follow are read.
+ */
+async function recoverArticle(id: string, all: Article[]): Promise<Article | undefined> {
+  if (recovered.has(id)) return recovered.get(id) ?? undefined;
+  const link = fromId(id);
+  let url: URL;
+  try {
+    url = new URL(link);
+  } catch {
+    return undefined;
+  }
+  if (!/^https?:$/.test(url.protocol) || toId(link) !== id) return undefined;
+  const base = baseDomain(url.hostname);
+  const twin = all.find((a) => baseDomain(new URL(a.link).hostname) === base);
+  const src = SOURCES.find((s) => baseDomain(new URL(s.url).hostname) === base);
+  if (!twin && !src) return undefined;
+  let article: Article | null = null;
+  try {
+    const res = await fetch(link, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const html = decodeBody(new Uint8Array(await res.arrayBuffer()), res.headers.get("content-type"));
+      const end = html.search(/<\/head>/i);
+      const head = end > 0 ? html.slice(0, end) : html.slice(0, 400_000);
+      const meta = (key: string) => {
+        const tag = head.match(new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]*>`, "i"))?.[0];
+        const v = tag?.match(/content=["']([^"']*)["']/i)?.[1];
+        return v ? stripHtml(v) : undefined;
+      };
+      const title = meta("og:title") ?? meta("twitter:title") ?? stripHtml(head.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "");
+      if (title) {
+        const desc = meta("og:description") ?? meta("description") ?? "";
+        let image = meta("og:image") ?? meta("twitter:image");
+        if (image?.startsWith("//")) image = `https:${image}`;
+        article = {
+          id,
+          title,
+          link,
+          excerpt: excerpt(desc),
+          text: desc,
+          image,
+          source: twin?.source ?? src!.name,
+          category: twin?.category ?? src!.category,
+          lang: twin?.lang ?? src!.lang,
+          region: twin?.region ?? src!.region,
+          published: parseDate(meta("article:published_time") ?? meta("pubdate") ?? undefined),
+        };
+      }
+    }
+  } catch {}
+  recovered.set(id, article);
+  if (!article) setTimeout(() => recovered.delete(id), 10 * 60_000); // try again later
+  if (recovered.size > 2000) recovered.delete(recovered.keys().next().value!);
+  return article ?? undefined;
 }
 
 /** True when some shown articles are still in the other language (translation still running). */
