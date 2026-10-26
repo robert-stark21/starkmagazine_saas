@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import type { LiqHeat } from "@/lib/markets";
+import type { LiqHeat } from "@/lib/liq";
 
 /**
  * The switch between the two views of a liquidation card: bars by price band (actual
