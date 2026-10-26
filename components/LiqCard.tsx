@@ -11,15 +11,19 @@ import { LiqViews } from "./LiqViews";
 const KEY = "liqEx";
 const NAMES: Record<ExId, { vi: string; en: string }> = {
   okx: { vi: "OKX", en: "OKX" },
+  binance: { vi: "Binance", en: "Binance" },
   htx: { vi: "HTX", en: "HTX" },
   gate: { vi: "Gate", en: "Gate" },
+  hl: { vi: "Hyperliquid", en: "Hyperliquid" },
   all: { vi: "Tất cả sàn", en: "All exchanges" },
 };
 const NOTES: Record<ExId, { vi: string; en: string }> = {
-  okx: { vi: "Từng lệnh thanh lý", en: "Every liquidation order" },
-  htx: { vi: "Từng lệnh thanh lý", en: "Every liquidation order" },
-  gate: { vi: "Tổng mỗi 15 phút", en: "15-minute totals" },
-  all: { vi: "Cộng các sàn trên", en: "The exchanges above added up" },
+  okx: { vi: "Từng lệnh thanh lý + heatmap", en: "Every liquidation order + heatmap" },
+  binance: { vi: "Chỉ heatmap ước tính (không công bố thanh lý)", en: "Estimated heatmap only (no public liquidations)" },
+  htx: { vi: "Từng lệnh thanh lý + heatmap", en: "Every liquidation order + heatmap" },
+  gate: { vi: "Tổng thanh lý mỗi 15 phút + heatmap", en: "15-minute liquidation totals + heatmap" },
+  hl: { vi: "Chỉ heatmap ước tính theo khối lượng", en: "Heatmap estimated from volume only" },
+  all: { vi: "Thanh lý OKX, HTX, Gate cộng lại", en: "OKX, HTX and Gate liquidations added up" },
 };
 
 const usd = (n: number) =>
@@ -111,7 +115,14 @@ export function LiqCard({ initial, available, lang }: { initial: LiqPanel; avail
           Coinglass ↗
         </a>
       </div>
-      <div className="liq-tot">
+      {!p.hasLiq && (
+        <p className="liq-note">
+          {vi
+            ? `${NAMES[p.ex].vi} không công bố lịch sử thanh lý công khai, nên chỉ có heatmap ước tính.`
+            : `${NAMES[p.ex].en} publishes no public liquidation history, so only the estimated heatmap is shown.`}
+        </p>
+      )}
+      {p.hasLiq && <div className="liq-tot">
         {p.totals.map((t) => {
           const all = t.long + t.short || 1;
           return (
@@ -122,8 +133,8 @@ export function LiqCard({ initial, available, lang }: { initial: LiqPanel; avail
             </div>
           );
         })}
-      </div>
-      <LiqViews heat={p.heat} lang={lang}>
+      </div>}
+      <LiqViews heat={p.heat} lang={lang} noBars={!p.hasLiq} source={p.ex === "all" ? (vi ? "các sàn" : "the exchanges") : NAMES[p.ex][lang]} byVolume={p.ex === "hl"}>
         {p.bins.length > 0 ? (
           <ol className="liq-bins" aria-label={vi ? "Thanh lý theo vùng giá, 24 giờ" : "Liquidations by price, 24 hours"}>
             {p.bins.map((b) => (

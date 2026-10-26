@@ -4,8 +4,12 @@
  * - HTX: liquidation orders (asked in 2-hour windows), candles, hourly open interest.
  * - Gate: 15-minute statistics (long/short liquidated in USD, open interest, mark price);
  *   no single orders, so a band holds what was liquidated while price was there.
- * "All" adds them up. Binance, Bybit and Bitget give no liquidation history without a
- * key or a live socket, so they are not offered.
+ * - Binance: candles and open interest history, but no public liquidation history (only a
+ *   live socket), so only the estimated heatmap.
+ * - Hyperliquid: candles and today's open interest, no history of either liquidations or
+ *   open interest; its heatmap uses traded volume as a stand-in for new positions.
+ * "All" adds up the liquidations and open interest of those that publish them.
+ * Bybit and Bitget give no liquidation history without a key.
  *
  * The heatmap is an estimate in the spirit of Coinglass: whenever open interest grows, the
  * new positions are assumed to open within that candle's range with a typical leverage mix;
@@ -22,16 +26,19 @@ async function getJson(url: string, timeout = 8000) {
 }
 
 export type Coin = "BTC" | "ETH";
-export type ExId = "okx" | "htx" | "gate" | "all";
+export type ExId = "okx" | "binance" | "htx" | "gate" | "hl" | "all";
 export const EXCHANGES: { id: Exclude<ExId, "all">; name: string }[] = [
   { id: "okx", name: "OKX" },
+  { id: "binance", name: "Binance" },
   { id: "htx", name: "HTX" },
   { id: "gate", name: "Gate" },
+  { id: "hl", name: "Hyperliquid" },
 ];
 
 type Liq = { side: "long" | "short"; usd: number; price: number; ts: number };
 type Bar = { ts: number; high: number; low: number; close: number };
-type Raw = { liqs: Liq[]; orders: boolean; bars15: Bar[]; bars1h: Bar[]; oi: Map<number, number> };
+// hasLiq: the exchange publishes liquidations; realOi: open interest history (not a stand-in).
+type Raw = { liqs: Liq[]; orders: boolean; hasLiq: boolean; realOi: boolean; bars15: Bar[]; bars1h: Bar[]; oi: Map<number, number> };
 
 export type LiqHeat = { t0: number; step: number; lo: number; hi: number; rows: number; cols: number; cells: number[]; close: number[] };
 export type LiqPanel = {
@@ -41,6 +48,7 @@ export type LiqPanel = {
   price: number;
   hours: number;
   orders: boolean; // single liquidation orders (else 15-minute totals)
+  hasLiq: boolean; // false: no liquidation data at all (heatmap only)
   totals: { label: "1h" | "4h" | "24h"; long: number; short: number }[];
   bins: { from: number; to: number; long: number; short: number; current: boolean }[];
   biggest?: Liq;
@@ -83,7 +91,39 @@ async function okx(coin: Coin): Promise<Raw> {
   ]);
   const oi = new Map<number, number>();
   for (const j of [oi1h, oi15]) for (const r of (j?.data ?? []) as string[][]) oi.set(+r[0], +r[3]);
-  return { liqs, orders: true, bars15: bars(c15), bars1h: bars(c1h), oi };
+  return { liqs, orders: true, hasLiq: true, realOi: true, bars15: bars(c15), bars1h: bars(c1h), oi };
+}
+
+async function binance(coin: Coin): Promise<Raw> {
+  const sym = `${coin}USDT`;
+  const k = (i: string, n: number) => getJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${i}&limit=${n}`);
+  const o = (p: string) => getJson(`https://fapi.binance.com/futures/data/openInterestHist?symbol=${sym}&period=${p}&limit=100`);
+  const [k15, k1h, o15, o1h] = await Promise.all([k("15m", 96), k("1h", 100), o("15m"), o("1h")]);
+  const bars = (j: any[]) => j.map((c) => ({ ts: +c[0], high: +c[2], low: +c[3], close: +c[4] }));
+  const oi = new Map<number, number>();
+  for (const r of [...(o1h as any[]), ...(o15 as any[])]) oi.set(Number(r.timestamp), Number(r.sumOpenInterestValue));
+  return { liqs: [], orders: false, hasLiq: false, realOi: true, bars15: bars(k15), bars1h: bars(k1h), oi };
+}
+
+async function hl(coin: Coin): Promise<Raw> {
+  const post = (body: object) =>
+    fetch("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "Content-Type": "application/json", "User-Agent": UA }, body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(8000) })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
+  const now = Date.now();
+  const [c15, c1h] = await Promise.all([
+    post({ type: "candleSnapshot", req: { coin, interval: "15m", startTime: now - 24 * H } }),
+    post({ type: "candleSnapshot", req: { coin, interval: "1h", startTime: now - 100 * H } }),
+  ]);
+  const toBars = (j: any[]) => j.map((c) => ({ ts: c.t, high: +c.h, low: +c.l, close: +c.c, usd: +c.v * +c.c }));
+  const b15 = toBars(c15).slice(-96), b1h = toBars(c1h);
+  // No open interest history: a stand-in where a tenth of the traded value opens new positions
+  // and 3% of what is open closes every quarter hour (12% an hour).
+  const oi = new Map<number, number>();
+  let level = 0;
+  for (const b of b1h.filter((x) => x.ts + H <= (b15[0]?.ts ?? now))) oi.set(b.ts, (level = level * 0.88 + b.usd * 0.1));
+  for (const b of b15) oi.set(b.ts, (level = level * 0.97 + b.usd * 0.1));
+  const strip = (x: { ts: number; high: number; low: number; close: number }) => ({ ts: x.ts, high: x.high, low: x.low, close: x.close });
+  return { liqs: [], orders: false, hasLiq: false, realOi: false, bars15: b15.map(strip), bars1h: b1h.map(strip), oi };
 }
 
 async function htx(coin: Coin): Promise<Raw> {
@@ -114,7 +154,7 @@ async function htx(coin: Coin): Promise<Raw> {
   if (j0(c15) === 0) throw new Error("htx candles");
   const oi = new Map<number, number>();
   for (const t of (oiH?.data?.tick ?? []) as any[]) oi.set(Number(t.ts), Number(t.value));
-  return { liqs, orders: true, bars15: bars(c15), bars1h: bars(c1h), oi: fill15(oi) };
+  return { liqs, orders: true, hasLiq: true, realOi: true, bars15: bars(c15), bars1h: bars(c1h), oi: fill15(oi) };
 }
 const j0 = (j: any) => ((j?.data ?? []) as any[]).length;
 
@@ -150,10 +190,10 @@ async function gate(coin: Coin): Promise<Raw> {
   const oi = new Map<number, number>();
   for (const s of [...(stats1h as any[]), ...(stats15 as any[])]) oi.set(s.time * 1000, Number(s.open_interest_usd));
   const bars = (j: any[]) => j.map((k) => ({ ts: k.t * 1000, high: +k.h, low: +k.l, close: +k.c }));
-  return { liqs, orders: false, bars15: bars(k15), bars1h: bars(k1h), oi };
+  return { liqs, orders: false, hasLiq: true, realOi: true, bars15: bars(k15), bars1h: bars(k1h), oi };
 }
 
-const FETCH = { okx, htx, gate } as const;
+const FETCH = { okx, binance, htx, gate, hl } as const;
 
 // ---------------------------------------------------------------- shaping
 function histogram(liqs: Liq[], price: number, rows = 9) {
@@ -230,6 +270,7 @@ function panel(coin: Coin, ex: ExId, exName: string, raw: Raw): LiqPanel {
     price,
     hours: Math.max(1, Math.round((now - oldest) / H)),
     orders: raw.orders,
+    hasLiq: raw.hasLiq,
     totals: ([[1, "1h"], [4, "4h"], [24, "24h"]] as const).map(([h, label]) => ({ label, long: sum(h, "long"), short: sum(h, "short") })),
     bins: liqs.length ? histogram(liqs, price) : [],
     biggest: raw.orders ? liqs.reduce<Liq | undefined>((m, l) => (!m || l.usd > m.usd ? l : m), undefined) : undefined,
@@ -261,12 +302,14 @@ async function rawOf(ex: Exclude<ExId, "all">, coin: Coin): Promise<Raw | null> 
   return job;
 }
 
-/** Everything added up: liquidations and open interest of all exchanges, candles of the first. */
+/** Everything added up: liquidations of those that publish them, real open interest, candles of the first. */
 function combine(list: Raw[]): Raw {
+  const withOi = list.filter((r) => r.realOi);
   const oi = new Map<number, number>();
   // Only times every exchange reported, so a missing point doesn't look like a drop.
-  for (const [t] of list[0].oi) if (list.every((r) => r.oi.has(t))) oi.set(t, list.reduce((a, r) => a + r.oi.get(t)!, 0));
-  return { liqs: list.flatMap((r) => r.liqs), orders: list.every((r) => r.orders), bars15: list[0].bars15, bars1h: list[0].bars1h, oi };
+  if (withOi.length) for (const [t] of withOi[0].oi) if (withOi.every((r) => r.oi.has(t))) oi.set(t, withOi.reduce((a, r) => a + r.oi.get(t)!, 0));
+  const liq = list.filter((r) => r.hasLiq);
+  return { liqs: liq.flatMap((r) => r.liqs), orders: liq.every((r) => r.orders), hasLiq: liq.length > 0, realOi: withOi.length > 0, bars15: list[0].bars15, bars1h: list[0].bars1h, oi };
 }
 
 export async function getLiqPanel(coin: Coin, ex: ExId): Promise<LiqPanel | null> {
@@ -285,6 +328,9 @@ export async function getLiquidations(): Promise<{ panels: LiqPanel[]; available
   const available = ok.filter((x): x is Exclude<ExId, "all"> => !!x) as ExId[];
   if (!available.length) return { panels: [], available };
   if (available.length > 1) available.push("all");
-  const panels = (await Promise.all((["BTC", "ETH"] as Coin[]).map((c) => getLiqPanel(c, available[0])))).filter((p): p is LiqPanel => !!p);
+  // Default: the first exchange that publishes liquidations (else the first that answers).
+  const withLiq = await Promise.all(available.map(async (id) => (id !== "all" && (await rawOf(id, "BTC"))?.hasLiq ? id : null)));
+  const first = withLiq.find(Boolean) ?? available[0];
+  const panels = (await Promise.all((["BTC", "ETH"] as Coin[]).map((c) => getLiqPanel(c, first)))).filter((p): p is LiqPanel => !!p);
   return { panels, available };
 }

@@ -17,7 +17,14 @@ const read = (): View => {
   }
 };
 
-export function LiqViews({ heat, lang, children }: { heat?: LiqHeat | null; lang: "vi" | "en"; children: React.ReactNode }) {
+export function LiqViews({ heat, lang, noBars = false, source, byVolume = false, children }: {
+  heat?: LiqHeat | null;
+  lang: "vi" | "en";
+  noBars?: boolean;
+  source: string; // exchange name for the note under the heatmap
+  byVolume?: boolean; // no open interest history: estimated from traded volume
+  children: React.ReactNode;
+}) {
   const [view, setView] = useState<View>("bars");
   useEffect(() => {
     setView(read());
@@ -33,16 +40,17 @@ export function LiqViews({ heat, lang, children }: { heat?: LiqHeat | null; lang
     dispatchEvent(new Event("liqview"));
   };
   const vi = lang === "vi";
-  const shown = heat ? view : "bars";
+  // An exchange without liquidation data has only the heatmap.
+  const shown = heat ? (noBars ? "heat" : view) : "bars";
   return (
     <div className="liq-views">
       {heat && (
         <div className="seg" role="tablist" aria-label={vi ? "Kiểu xem" : "View"}>
-          <button type="button" role="tab" aria-selected={shown === "bars"} onClick={() => pick("bars")}>{vi ? "Cột" : "Bars"}</button>
+          <button type="button" role="tab" aria-selected={shown === "bars"} disabled={noBars} title={noBars ? (vi ? "Sàn này không công bố thanh lý" : "No liquidation data from this exchange") : undefined} onClick={() => pick("bars")}>{vi ? "Cột" : "Bars"}</button>
           <button type="button" role="tab" aria-selected={shown === "heat"} onClick={() => pick("heat")}>Heatmap</button>
         </div>
       )}
-      {shown === "heat" && heat ? <Heatmap h={heat} vi={vi} /> : children}
+      {shown === "heat" && heat ? <Heatmap h={heat} vi={vi} source={source} byVolume={byVolume} /> : children}
     </div>
   );
 }
@@ -60,7 +68,7 @@ function color(v: number): string {
   return `rgb(${ca.map((c, j) => Math.round(c + (cb[j] - c) * k)).join(",")})`;
 }
 
-function Heatmap({ h, vi }: { h: LiqHeat; vi: boolean }) {
+function Heatmap({ h, vi, source, byVolume }: { h: LiqHeat; vi: boolean; source: string; byVolume: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   useEffect(() => {
@@ -138,7 +146,11 @@ function Heatmap({ h, vi }: { h: LiqHeat; vi: boolean }) {
     <div className="liq-heat">
       <canvas ref={ref} onPointerMove={onMove} onPointerLeave={() => setTip(null)} aria-label={vi ? "Heatmap thanh lý ước tính 24 giờ" : "Estimated liquidation heatmap, 24 hours"} role="img" />
       {tip && <span className="liq-tip" style={{ left: tip.x, top: tip.y }}>{tip.text}</span>}
-      <p className="liq-note">{vi ? "Ước tính từ open interest và giá trên OKX (đòn bẩy giả định 5–100x), không phải dữ liệu Coinglass." : "Estimated from OKX open interest and price (assumed 5–100x leverage), not Coinglass data."}</p>
+      <p className="liq-note">
+        {vi
+          ? `Ước tính từ ${byVolume ? "khối lượng giao dịch" : "open interest"} và giá trên ${source} (đòn bẩy giả định 5–100x), không phải dữ liệu Coinglass.`
+          : `Estimated from ${source} ${byVolume ? "traded volume" : "open interest"} and price (assumed 5–100x leverage), not Coinglass data.`}
+      </p>
     </div>
   );
 }
