@@ -6,6 +6,7 @@ import { AutoRefresh, CardPrefetch, CardTransitions, Grain, NavProgress, Spotlig
 import { Header } from "@/components/Header";
 import { lastUpdated, REFRESH_SECONDS } from "@/lib/feeds";
 import { Literata, Manrope } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 
 // Self-hosted at build time (no request to Google at runtime), with Vietnamese glyphs.
 // latin-ext holds ă, đ, ơ, ư: preloading it avoids a layout shift when it arrives late.
@@ -65,6 +66,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             © STARK · {lang === "vi" ? "Nội dung thuộc về các nguồn báo gốc." : "All content belongs to the original publishers."}
           </div>
         </footer>
+        <Analytics />
       </body>
     </html>
   );
