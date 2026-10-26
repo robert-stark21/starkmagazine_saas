@@ -23,7 +23,8 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const article = await getArticle(id);
-  if (!article) return {};
+  // Unknown story: answering here (before the page starts streaming) gives a real 404 status.
+  if (!article) notFound();
   const lang = await getLang();
   const [a] = await localize([article], lang, 1500);
   const title = a.title;

@@ -810,3 +810,9 @@ a, button { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   .charts, .chart, .charts .chart.vn, .charts .chart.intl { transition: none !important; }
 }
+
+/* ---------- Not found ---------- */
+.nf { min-height: 50vh; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 10px; padding-top: 40px; padding-bottom: 60px; }
+.nf-code { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: .2em; color: var(--muted); }
+.nf h1 { margin: 0; font-size: clamp(28px, 4vw, 44px); line-height: 1.1; }
+.nf p.muted { margin: 0 0 8px; max-width: 46ch; }

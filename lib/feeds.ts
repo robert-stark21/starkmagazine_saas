@@ -304,8 +304,8 @@ async function recoverArticle(id: string, all: Article[]): Promise<Article | und
   if (!/^https?:$/.test(url.protocol) || toId(link) !== id) return undefined;
   const base = baseDomain(url.hostname);
   const twin = all.find((a) => baseDomain(new URL(a.link).hostname) === base);
-  const src = SOURCES.find((s) => baseDomain(new URL(s.url).hostname) === base);
-  if (!twin && !src) return undefined;
+  const sources = SOURCES.filter((s) => baseDomain(new URL(s.url).hostname) === base);
+  if (!twin && !sources.length) return undefined;
   let article: Article | null = null;
   try {
     const res = await fetch(link, {
@@ -313,7 +313,10 @@ async function recoverArticle(id: string, all: Article[]): Promise<Article | und
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
     });
-    if (res.ok) {
+    // A missing story often redirects to the home page or a "404.html" page that answers 200.
+    const landed = new URL(res.url || link);
+    const notAStory = landed.pathname === "/" || /(^|\/)(404|not-?found)(\.html?)?\/?$/i.test(landed.pathname);
+    if (res.ok && !notAStory) {
       const html = decodeBody(new Uint8Array(await res.arrayBuffer()), res.headers.get("content-type"));
       const end = html.search(/<\/head>/i);
       const head = end > 0 ? html.slice(0, end) : html.slice(0, 400_000);
@@ -323,7 +326,16 @@ async function recoverArticle(id: string, all: Article[]): Promise<Article | und
         return v ? stripHtml(v) : undefined;
       };
       const title = meta("og:title") ?? meta("twitter:title") ?? stripHtml(head.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "");
-      if (title) {
+      // Home and section pages say og:type "website"; stories say "article" (or nothing).
+      const type = meta("og:type")?.toLowerCase();
+      // Several feeds of one site (VnExpress Thể thao, Giải trí…): pick the one whose section
+      // matches the page's own section names (meta tags, breadcrumb names, its address).
+      const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const section = fold([meta("tt_list_folder_name"), meta("article:section"), meta("category"), meta("og:url"), landed.pathname].filter(Boolean).join(" "));
+      const words = (s: (typeof SOURCES)[number]) =>
+        new URL(s.url).pathname.split("/").map((p) => p.replace(/\.(rss|xml|html?)$/i, "")).filter((p) => p && !/^(rss|feeds?|category|index|home|news)$/i.test(p));
+      const src = [...sources].sort((x, y) => words(y).filter((w) => section.includes(w)).length - words(x).filter((w) => section.includes(w)).length)[0];
+      if (title && (!type || type === "article" || type === "news" || type.startsWith("video"))) {
         const desc = meta("og:description") ?? meta("description") ?? "";
         let image = meta("og:image") ?? meta("twitter:image");
         if (image?.startsWith("//")) image = `https:${image}`;
@@ -334,10 +346,10 @@ async function recoverArticle(id: string, all: Article[]): Promise<Article | und
           excerpt: excerpt(desc),
           text: desc,
           image,
-          source: twin?.source ?? src!.name,
-          category: twin?.category ?? src!.category,
-          lang: twin?.lang ?? src!.lang,
-          region: twin?.region ?? src!.region,
+          source: src?.name ?? twin!.source,
+          category: src?.category ?? twin!.category,
+          lang: src?.lang ?? twin!.lang,
+          region: src?.region ?? twin!.region,
           published: parseDate(meta("article:published_time") ?? meta("pubdate") ?? undefined),
         };
       }
