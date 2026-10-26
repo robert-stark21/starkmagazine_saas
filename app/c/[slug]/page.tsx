@@ -8,6 +8,7 @@ import { getCategory, MOODBOARD, SOURCES } from "@/lib/sources";
 import { getLang, UI } from "@/lib/lang";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Charts } from "@/components/Charts";
+import { EconPanels, LiquidationPanels } from "@/components/MarketPanels";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,16 @@ export default async function CategoryPage({
         {slug === "showbiz" && (
           <Suspense fallback={<div className="charts charts-wait" aria-hidden="true" />}>
             <Charts lang={lang} region={r} />
+          </Suspense>
+        )}
+        {slug === "crypto" && (
+          <Suspense fallback={<div className="charts charts-wait" aria-hidden="true" />}>
+            <LiquidationPanels lang={lang} />
+          </Suspense>
+        )}
+        {slug === "tai-chinh" && (
+          <Suspense fallback={<div className="charts charts-wait" aria-hidden="true" />}>
+            <EconPanels lang={lang} />
           </Suspense>
         )}
         {loc.length ? (
