@@ -1,7 +1,7 @@
 import Parser from "rss-parser";
 import { CATEGORIES, SOURCES, type Lang, type Source } from "./sources";
 import { excerpt, fromId, stripHtml, toId } from "./text";
-import { translateMany } from "./translate";
+import { preferFor, translateMany, type Prefer } from "./translate";
 import { videoFromUrl } from "./fulltext";
 import { mockArticles } from "./mock";
 import { SCRAPERS } from "./scrapers";
@@ -258,7 +258,7 @@ async function pretranslate(articles: Article[]) {
       // Newest first, in small batches, so translations reach the cache (and pages) quickly.
       picked.sort((a, b) => b.published.localeCompare(a.published));
       for (let i = 0; i < picked.length; i += 15) {
-        await translateMany(picked.slice(i, i + 15).flatMap((a) => [a.title, a.excerpt]), lang);
+        await translateArticles(picked.slice(i, i + 15), lang);
       }
     }
   } catch (e) {
@@ -366,20 +366,37 @@ export function hasUntranslated(articles: Article[], lang: Lang): boolean {
   return articles.some((a) => a.lang !== lang && a.pending);
 }
 
+/**
+ * Title and excerpt of each article, translated: sections in CLAUDE_CATEGORIES go to Claude
+ * first, the rest to the free translators first. Returns [title, excerpt] per article.
+ */
+async function translateArticles(list: Article[], lang: Lang): Promise<[string, string][]> {
+  const out: [string, string][] = list.map((a) => [a.title, a.excerpt]);
+  const groups = new Map<Prefer, number[]>();
+  list.forEach((a, i) => groups.set(preferFor(a.category), [...(groups.get(preferFor(a.category)) ?? []), i]));
+  await Promise.all(
+    [...groups].map(async ([prefer, idx]) => {
+      // Names (award-winning websites) keep their title; an empty string is not translated.
+      const tr = await translateMany(idx.flatMap((i) => [list[i].keepTitle ? "" : list[i].title, list[i].excerpt]), lang, { prefer });
+      idx.forEach((i, j) => (out[i] = [list[i].keepTitle ? list[i].title : tr[j * 2], tr[j * 2 + 1]]));
+    })
+  );
+  return out;
+}
+
 /** Translates title and excerpt of articles whose language differs from the reader's choice. */
 export async function localize(articles: Article[], lang: Lang, waitMs = 1500): Promise<Article[]> {
   const need = articles.filter((a) => a.lang !== lang);
   if (!need.length) return articles;
-  // Names (award-winning websites) keep their title; an empty string is not translated.
-  const texts = need.flatMap((a) => [a.keepTitle ? "" : a.title, a.excerpt]);
   // Don't hold the page for long: after waitMs show the original text. Translation keeps
   // going in the background and fills the cache for the next visit.
   let timedOut = false;
+  const original = need.map((a): [string, string] => [a.title, a.excerpt]);
   const tr = await Promise.race([
-    translateMany(texts, lang),
-    new Promise<string[]>((r) => setTimeout(() => ((timedOut = true), r(texts)), waitMs)),
+    translateArticles(need, lang),
+    new Promise<[string, string][]>((r) => setTimeout(() => ((timedOut = true), r(original)), waitMs)),
   ]);
-  const map = new Map(need.map((a, i) => [a.id, { title: a.keepTitle ? a.title : tr[i * 2], excerpt: tr[i * 2 + 1] }]));
+  const map = new Map(need.map((a, i) => [a.id, { title: tr[i][0], excerpt: tr[i][1] }]));
   return articles.map((a) => {
     const t = map.get(a.id);
     if (t && (t.title !== a.title || t.excerpt !== a.excerpt)) return { ...a, ...t, translated: true };

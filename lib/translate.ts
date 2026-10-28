@@ -6,16 +6,21 @@ import path from "node:path";
 import type { Lang } from "./sources";
 
 /**
- * Translation chain. Each piece of text goes to the first translator that succeeds:
- *   1. Claude    — only when ANTHROPIC_API_KEY is set (best quality, paid). Model from
- *                  TRANSLATE_MODEL (default claude-haiku-5-5: fast and cheap for translation).
- *   2. Microsoft — free Bing Translator web API, no key (primary)
- *   3. Google    — free endpoint, no key (backup)
- * If all fail, the original text is shown.
+ * Translation chain. Each piece of text goes to the first translator that succeeds, in one
+ * of two orders:
+ *   "free" (default)   Microsoft → Google → Claude: Claude only gets what the free ones failed on.
+ *   "claude"           Claude → Microsoft → Google: for the sections in CLAUDE_CATEGORIES,
+ *                      where wording matters most (design, UI/UX, tech).
+ * Microsoft is the free Bing Translator web API, Google a free endpoint, Claude needs
+ * ANTHROPIC_API_KEY (model from TRANSLATE_MODEL, default claude-haiku-5-5); without the key
+ * everything goes through the free ones. A translator that fails (blocked, rate-limited,
+ * timed out, out of credit) is skipped for 5 minutes, so pages don't wait on it. If all fail,
+ * the original text is shown. Translations are cached whichever translator made them.
  */
 
 type Provider = {
   name: string;
+  free?: boolean; // free web endpoint: empty or untouched output counts as a failure
   maxChars: number; // characters per request
   enabled: () => boolean;
   translate: (texts: string[], target: Lang) => Promise<string[]>;
@@ -66,7 +71,7 @@ async function bingSession(fresh = false): Promise<BingSession> {
   const res = await fetch("https://www.bing.com/translator", {
     headers: { "User-Agent": UA },
     cache: "no-store",
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(6000),
   });
   const html = await res.text();
   const IG = html.match(/IG:"([^"]+)"/)?.[1];
@@ -91,7 +96,7 @@ async function bingCall(text: string, target: Lang, s: BingSession): Promise<str
     },
     body: new URLSearchParams({ fromLang: "auto-detect", to: target, text, token: s.token, key: s.key }),
     cache: "no-store",
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(6000),
   });
   const data: any = await res.json().catch(() => null);
   const out = Array.isArray(data) ? data[0]?.translations?.[0]?.text : undefined;
@@ -101,6 +106,7 @@ async function bingCall(text: string, target: Lang, s: BingSession): Promise<str
 
 const microsoft: Provider = {
   name: "microsoft",
+  free: true,
   maxChars: 1000,
   enabled: () => true,
   translate: bingBatch,
@@ -136,6 +142,7 @@ let googleHost = 0;
 
 const google: Provider = {
   name: "google",
+  free: true,
   maxChars: 4000,
   enabled: () => true,
   async translate(texts, target) {
@@ -149,7 +156,7 @@ const google: Provider = {
           headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
           body,
           cache: "no-store",
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(6000),
         });
         if (!res.ok) throw new Error(`google ${res.status}`);
         const data: unknown = await res.json();
@@ -202,7 +209,31 @@ const claude: Provider = {
   },
 };
 
-const PROVIDERS = [claude, microsoft, google];
+/** Sections translated by Claude first (the others use the free translators first). */
+export const CLAUDE_CATEGORIES = new Set(["design", "ui-ux", "cong-nghe"]);
+export type Prefer = "claude" | "free";
+export const preferFor = (category: string): Prefer => (CLAUDE_CATEGORIES.has(category) ? "claude" : "free");
+const ORDER: Record<Prefer, Provider[]> = { free: [microsoft, google, claude], claude: [claude, microsoft, google] };
+
+// ---------- circuit breaker and serving stats ----------
+
+const PAUSE = 5 * 60_000;
+const downUntil = new Map<string, number>();
+const isDown = (p: Provider) => Date.now() < (downUntil.get(p.name) ?? 0);
+
+/** A "translation" that came back unchanged although it reads like a sentence: treat as failed. */
+const looksUntranslated = (src: string, out: string) => out.trim() === src.trim() && (src.match(/\p{L}{2,}/gu)?.length ?? 0) >= 4;
+
+// Which translator served how many pieces, logged at most once a minute (no text, no keys).
+const served = new Map<string, number>();
+let lastStats = Date.now();
+function count(name: string, n: number) {
+  served.set(name, (served.get(name) ?? 0) + n);
+  if (Date.now() - lastStats < 60_000) return;
+  lastStats = Date.now();
+  console.info(`[translate] served: ${[...served].map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  served.clear();
+}
 
 // ---------- chain ----------
 
@@ -257,7 +288,7 @@ function warn(name: string, e: unknown) {
 }
 
 /** Translates many texts. Falls back to the original text when every translator fails. */
-export async function translateMany(texts: string[], target: Lang): Promise<string[]> {
+export async function translateMany(texts: string[], target: Lang, opts: { prefer?: Prefer } = {}): Promise<string[]> {
   const out = texts.slice();
   const todo: number[] = [];
   const claimed = new Set<string>();
@@ -278,7 +309,7 @@ export async function translateMany(texts: string[], target: Lang): Promise<stri
     }
   });
   try {
-    if (todo.length) await translatePending(texts, target, out, todo);
+    if (todo.length) await translatePending(texts, target, out, todo, ORDER[opts.prefer ?? "free"]);
   } finally {
     claimed.forEach((k) => inFlight.delete(k));
     release();
@@ -293,7 +324,7 @@ export async function translateMany(texts: string[], target: Lang): Promise<stri
 /** Texts being translated right now, with the request doing it (resolves when it is done). */
 const inFlight = new Map<string, Promise<void>>();
 
-async function translatePending(texts: string[], target: Lang, out: string[], todo: number[]): Promise<string[]> {
+async function translatePending(texts: string[], target: Lang, out: string[], todo: number[], providers: Provider[]): Promise<string[]> {
 
   // Break texts into units; remember which units make up each text.
   const units: string[] = [];
@@ -303,16 +334,26 @@ async function translatePending(texts: string[], target: Lang, out: string[], to
   }
   const done: (string | undefined)[] = new Array(units.length);
 
-  for (const p of PROVIDERS) {
-    if (!p.enabled()) continue;
+  for (const p of providers) {
+    if (!p.enabled() || isDown(p)) continue;
     const pending = units.map((_, k) => k).filter((k) => done[k] === undefined);
     if (!pending.length) break;
     await runLimited(chunk(pending, units, p.maxChars), async (ids) => {
+      if (isDown(p)) return; // it failed on another piece meanwhile: leave the rest to the next one
       try {
         const res = await p.translate(ids.map((k) => units[k]), target);
-        ids.forEach((k, j) => (done[k] = clean(res[j]) || units[k]));
+        let ok = 0;
+        ids.forEach((k, j) => {
+          const out = clean(res[j] ?? "");
+          // Free translators sometimes return empty or untouched text: let the next one try.
+          if (p.free && (!out || looksUntranslated(units[k], out))) return;
+          done[k] = out || units[k];
+          ok++;
+        });
+        if (ok) count(p.name, ok);
       } catch (e) {
         warn(p.name, e);
+        downUntil.set(p.name, Date.now() + PAUSE);
       }
     });
   }

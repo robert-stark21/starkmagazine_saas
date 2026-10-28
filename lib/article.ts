@@ -2,7 +2,7 @@ import type { Article } from "./feeds";
 import { getFullText, type Block, type FullText } from "./fulltext";
 import type { Lang } from "./sources";
 import { readingTime, splitSentences, summarize } from "./text";
-import { translateMany } from "./translate";
+import { preferFor, translateMany } from "./translate";
 
 /** Everything the article page needs below the headline, already translated. */
 export type PreparedBody = { full: FullText | null; blocks: Block[]; summary: string[]; minutes: number };
@@ -23,7 +23,7 @@ export async function prepareBody(article: Article, lang: Lang): Promise<Prepare
   if (article.lang !== lang) {
     // Translate summary, paragraphs and captions in one go.
     const parts = blocks.map((b) => (b.type === "text" ? b.text : b.caption ?? ""));
-    const tr = await translateMany([...summary, ...parts], lang);
+    const tr = await translateMany([...summary, ...parts], lang, { prefer: preferFor(article.category) });
     summary = tr.slice(0, summary.length);
     const out = tr.slice(summary.length);
     blocks = blocks.map((b, i) => (b.type === "text" ? { ...b, text: out[i] } : b.caption ? { ...b, caption: out[i] } : b));
