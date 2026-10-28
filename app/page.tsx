@@ -1,12 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { imageSrcSet, imgSrc, SIZES } from "@/lib/img";
 import { ShinyText } from "@/components/BlurText";
 import { getAllArticles, hasUntranslated, localize } from "@/lib/feeds";
 import { RefreshSoon } from "@/components/client";
 import { warm } from "@/lib/warm";
-import { CATEGORIES } from "@/lib/sources";
+import { visibleCategories } from "@/lib/prefs";
 import { getLang, UI } from "@/lib/lang";
 import { ArticleCard } from "@/components/ArticleCard";
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 export const dynamic = "force-dynamic";
 // Room for translations and warm-ups to finish after the page is sent (see lib/background.ts).
@@ -15,12 +18,15 @@ export const maxDuration = 60;
 export default async function Home() {
   const lang = await getLang();
   const t = UI[lang];
-  const all = await getAllArticles();
+  // Only the sections this reader reads (all of them by default), in their order.
+  const cats = await visibleCategories();
+  const shownCats = new Set(cats.map((c) => c.slug));
+  const all = (await getAllArticles()).filter((a) => shownCats.has(a.category));
 
   const withImg = all.filter((a) => a.image);
   const hero = withImg[0] ?? all[0];
   const side = all.filter((a) => a !== hero).slice(0, 5);
-  const sections = CATEGORIES.map((c) => ({
+  const sections = cats.map((c) => ({
     c,
     items: all.filter((a) => a.category === c.slug && a !== hero).slice(0, 4),
   })).filter((s) => s.items.length);

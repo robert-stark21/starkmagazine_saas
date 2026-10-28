@@ -13,6 +13,7 @@ import { VideoEmbed } from "@/components/VideoEmbed";
 import { ArticleBodySkeleton } from "@/components/Skeletons";
 import { BlurText } from "@/components/BlurText";
 import { imageSrcSet, imgSrc, SIZES } from "@/lib/img";
+import { jsonLd, SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 // Room for translations and warm-ups to finish after the page is sent (see lib/background.ts).
@@ -33,7 +34,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const description = (a.excerpt || "").slice(0, 200) || undefined;
   const images = article.image ? [{ url: article.image, alt: title }] : undefined;
   return {
-    title: `${title} · STARK`,
+    title,
     description,
     openGraph: {
       type: "article",
@@ -66,8 +67,25 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
   // The feed excerpt as a short standfirst, when it says more than the title.
   const dek = top.excerpt && top.excerpt.length > 40 && !top.title.includes(top.excerpt.slice(0, 30)) ? top.excerpt : "";
 
+  // Search engines: this page is a news article (headline, date, picture, original source).
+  const ld = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: top.title.slice(0, 110),
+    description: (top.excerpt || "").slice(0, 300) || undefined,
+    datePublished: article.published,
+    image: article.image ? [article.image] : undefined,
+    inLanguage: lang === "vi" ? "vi-VN" : "en",
+    articleSection: cat[lang],
+    mainEntityOfPage: `${SITE_URL}/a/${id}`,
+    isBasedOn: article.link,
+    author: { "@type": "Organization", name: article.source },
+    publisher: { "@type": "Organization", name: "STARK", logo: { "@type": "ImageObject", url: `${SITE_URL}/icon-512.png` } },
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
       <ActiveCategory slug={article.category} />
       <div className="progress" style={{ ["--c" as any]: cat.color }} aria-hidden="true" />
       <main className="wrap">

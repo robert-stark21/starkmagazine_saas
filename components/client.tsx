@@ -1083,7 +1083,7 @@ export function ActiveCategory({ slug }: { slug: string }) {
  * to the start of the row). A tapped tab turns active at once, before the page arrives,
  * and the row glides to keep the active tab in view.
  */
-export function CatNav({ items }: { items: { href: string; slug: string; label: string; color?: string }[] }) {
+export function CatNav({ items }: { items: { href: string; slug: string; label: string; color?: string; className?: string }[] }) {
   const pathname = usePathname();
   const art = useSyncExternalStore(
     (f) => { catSubs.add(f); return () => { catSubs.delete(f); }; },
@@ -1113,7 +1113,7 @@ export function CatNav({ items }: { items: { href: string; slug: string; label: 
           <Link
             key={c.slug}
             href={c.href}
-            className={active === c.slug ? "on" : ""}
+            className={[active === c.slug ? "on" : "", c.className ?? ""].join(" ").trim() || undefined}
             style={c.color ? { ["--c" as any]: c.color } : undefined}
             onClick={() => setTapped(c.slug)}
           >
