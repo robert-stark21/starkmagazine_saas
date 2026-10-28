@@ -7,7 +7,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 type Lang = "vi" | "en";
 
 async function save(data: Record<string, string>) {
-  const r = await fetch("/api/prefs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
+  // keepalive: the save still goes through if the reader leaves the page right after pressing Save.
+  const r = await fetch("/api/prefs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data), keepalive: true });
   if (!r.ok) throw new Error(String(r.status));
 }
 
@@ -64,9 +65,12 @@ function useSaver<T>(initial: T, toPayload: (v: T) => Record<string, string>, af
   const [saved, setSaved] = useState(initial);
   const [value, setValue] = useState(initial);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // The value being saved right now, so leaving mid-save keeps it rather than the old one.
+  const inflight = useRef<T | undefined>(undefined);
   const dirty = JSON.stringify(value) !== JSON.stringify(saved);
   const doSave = async () => {
     setState("saving");
+    inflight.current = value;
     try {
       await save(toPayload(value));
       setSaved(value);
@@ -75,9 +79,11 @@ function useSaver<T>(initial: T, toPayload: (v: T) => Record<string, string>, af
       router.refresh();
     } catch {
       setState("error");
+    } finally {
+      inflight.current = undefined;
     }
   };
-  return { value, setValue, saved, dirty, state, doSave, cancel: () => setValue(saved) };
+  return { value, setValue, saved, inflight, dirty, state, doSave, cancel: () => setValue(saved) };
 }
 
 // ---------- Sections ----------
@@ -222,7 +228,8 @@ export function ThemeSettings({
   // Preview on the page itself while choosing; Cancel (or leaving unsaved) puts the saved look back.
   const savedRef = useRef(s.saved);
   savedRef.current = s.saved;
-  useEffect(() => () => apply(savedRef.current), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const inflight = s.inflight;
+  useEffect(() => () => apply(inflight.current ?? savedRef.current), []); // eslint-disable-line react-hooks/exhaustive-deps
   const apply = (v: ThemeValue) => {
     const html = document.documentElement;
     html.dataset.theme = v.theme;

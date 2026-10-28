@@ -9,6 +9,8 @@ export function stripHtml(html: string): string {
   // Decode all HTML entities (&agrave;, &#7897;, &#x1EA1;...), twice for double-escaped feeds.
   return decodeHTML(decodeHTML(text))
     .normalize("NFC")
+    // WordPress-style shortcodes left in some feeds: [rsn-live-v2], [caption id="…"], [/embed].
+    .replace(/\[\/?(?:[a-z][a-z0-9]*[-_][\w-]*|caption|embed|gallery|video|audio|playlist)(?:\s[^\]]*)?\]/gi, " ")
     .replace(/\u00a0/g, " ")
     .replace(/[ \t]+/g, " ")
     .replace(/\n\s*\n+/g, "\n")
