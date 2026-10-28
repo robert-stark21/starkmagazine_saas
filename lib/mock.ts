@@ -4,6 +4,26 @@ import type { Article } from "./feeds";
 import { excerpt, toId } from "./text";
 
 const SAMPLES: Record<string, { vi: string[]; en: string[] }> = {
+  "chinh-tri": {
+    vi: ["Quốc hội thảo luận dự án luật về chuyển đổi số", "Việt Nam và Nhật Bản ký thỏa thuận hợp tác mới"],
+    en: ["Parliament votes on new climate bill", "Leaders gather for regional summit"],
+  },
+  "xa-hoi": {
+    vi: ["Hà Nội mở thêm 3 tuyến xe buýt điện", "TP.HCM thí điểm phố đi bộ cuối tuần mới"],
+    en: ["City trials four-day school week"],
+  },
+  "du-lich": {
+    vi: ["Đà Lạt vào mùa hoa dã quỳ", "5 cung đường ven biển đẹp nhất miền Trung"],
+    en: ["The best islands to visit this winter", "A food lover's weekend in Bangkok"],
+  },
+  "suc-khoe": {
+    vi: ["Ngủ đủ giấc giúp giảm nguy cơ tim mạch", "Bác sĩ khuyên gì khi trời chuyển lạnh"],
+    en: ["Walking 7,000 steps a day linked to longer life"],
+  },
+  "giao-duc": {
+    vi: ["Bộ Giáo dục công bố phương án thi tốt nghiệp mới", "Học sinh Việt Nam giành 4 huy chương vàng Olympic"],
+    en: ["Universities expand online degree programmes"],
+  },
   "cong-nghe": {
     vi: ["Điện thoại gập mới ra mắt với pin lớn hơn 30%", "Việt Nam thử nghiệm mạng 6G đầu tiên tại Hà Nội", "Trí tuệ nhân tạo giúp bác sĩ đọc phim X-quang nhanh gấp đôi"],
     en: ["Apple unveils new chips focused on on-device AI", "Open-source model tops coding benchmark", "The best laptops for students this year"],

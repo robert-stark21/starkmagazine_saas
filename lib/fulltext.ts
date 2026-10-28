@@ -1,3 +1,5 @@
+import { isPublicUrl } from "./safe-fetch";
+import { SOURCES } from "./sources";
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import { createHash } from "node:crypto";
@@ -44,13 +46,34 @@ function saveDisk(url: string, value: FullText) {
 const MAX_IMAGES = 30;
 const MAX_VIDEOS = 8;
 
-function fetchPage(url: string) {
-  return fetch(url, {
-    // A complete browser user agent: some sites (Muse by Clios) refuse shortened ones.
-    headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36" },
-    next: { revalidate: 3600 },
-    signal: AbortSignal.timeout(12000),
-  });
+const PAGE_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+const siteHost = (h: string) => h.toLowerCase().replace(/^www\./, "");
+const KNOWN_HOSTS = new Set(SOURCES.map((s) => siteHost(new URL(s.url).hostname)));
+
+async function fetchPage(url: string): Promise<Response> {
+  const host = siteHost(new URL(url).hostname);
+  const known = [...KNOWN_HOSTS].some((k) => host === k || host.endsWith("." + k) || k.endsWith("." + host));
+  if (known) {
+    return fetch(url, {
+      // A complete browser user agent: some sites (Muse by Clios) refuse shortened ones.
+      headers: { "User-Agent": PAGE_UA },
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(12000),
+    });
+  }
+  // A story from a source a reader added: public sites only, checked at every redirect.
+  let current = url;
+  for (let hop = 0; hop < 5; hop++) {
+    if (!(await isPublicUrl(current))) throw new Error("blocked address");
+    const res = await fetch(current, { headers: { "User-Agent": PAGE_UA }, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(12000) });
+    const loc = res.headers.get("location");
+    if (res.status >= 300 && res.status < 400 && loc) {
+      current = new URL(loc, current).toString();
+      continue;
+    }
+    return res;
+  }
+  throw new Error("too many redirects");
 }
 
 /** Picks the largest candidate up to 1600px wide from a srcset ("a.jpg 640w, b.jpg 1200w"). */

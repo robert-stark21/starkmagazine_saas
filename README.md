@@ -44,3 +44,34 @@ Sửa danh sách `SOURCES` trong `lib/sources.ts`. Nguồn nào lỗi sẽ đư�
 - `lib/text.ts` — thời gian đọc, tóm tắt
 - `lib/translate.ts` — dịch theo lô, có cache
 - `app/` — trang chủ, trang mục `/c/[slug]`, trang bài `/a/[id]`
+
+## Bản thương mại (starkmagazine_saas)
+
+Bản này giữ nguyên giao diện STARK và thêm:
+
+- **Đăng nhập / đăng ký** bằng số điện thoại hoặc email + mật khẩu (trang `/dang-nhap`), và nút "Tiếp tục với Google".
+- **Cá nhân hóa chuyên mục** (trang `/tai-khoan`, hoặc "＋ Tùy chỉnh" cuối menu): bật/tắt, sắp xếp lại. Chưa đăng nhập thì lưu trên thiết bị; đăng nhập thì lưu vào tài khoản và theo người dùng sang thiết bị khác.
+- **SEO cơ bản**: tiêu đề/mô tả cho từng trang, `sitemap.xml`, `robots.txt`, Open Graph, dữ liệu cấu trúc (NewsArticle, WebSite).
+- **Nút "Ủng hộ"** góc phải dưới, mở mã QR donate.
+- **Chuyên mục mới**: Chính trị, Xã hội, Du lịch, Sức khỏe, Giáo dục (nguồn trong `lib/sources.ts`).
+- **Giao diện** (`/giao-dien`): 6 theme (Mặc định, Trẻ trung, Dễ đọc, Cute, Ngầu, Công nghệ) × Sáng / Tối / Tự động; nút đổi sáng tối trên header. Màu theme trong `lib/themes.ts`, kiểu dáng trong `app/globals.css`.
+- **Nguồn tin riêng** (`/tai-khoan/nguon`, cần đăng nhập): dán link trang hoặc RSS, thêm vào mục có sẵn hoặc mục tự tạo (tối đa 30 nguồn, 10 mục). Chỉ đọc các trang công khai (chặn localhost / mạng nội bộ).
+- **Tiện ích** (`/tai-khoan/tien-ich`): bật/tắt thanh giá, tỉ số, LMHT, bài hát, phim, BXH nhạc, thanh lý, lịch kinh tế, thời tiết điểm du lịch (Open-Meteo, mục Du lịch).
+
+### Biến môi trường (Vercel → Settings → Environment Variables)
+
+| Biến | Dùng cho |
+| --- | --- |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Upstash Redis: lưu tài khoản (bắt buộc trên Vercel) và cache bản dịch |
+| `AUTH_SECRET` | Chuỗi ngẫu nhiên dài để ký phiên đăng nhập (nên đặt; nếu thiếu sẽ suy ra từ token Redis) |
+| `NEXT_PUBLIC_SITE_URL` | Tên miền thật, ví dụ `https://stark.vn` (cho sitemap, link chia sẻ) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Bật nút đăng nhập Google. Redirect URI: `<tên miền>/api/auth/google/callback` |
+| `DONATE_QR` | Ảnh QR: đường dẫn trong `public/` (vd `/donate-qr.png`) hoặc URL |
+| `DONATE_BANK`, `DONATE_ACCOUNT`, `DONATE_NAME`, `DONATE_NOTE` | Thông tin chuyển khoản hiện dưới QR (tùy chọn) |
+| `ADS_LEFT_IMAGE`, `ADS_RIGHT_IMAGE` | Ảnh banner quảng cáo dọc hai bên (160×600, đường dẫn trong /public hoặc URL). Chỉ hiện trên màn hình rộng từ 1480px |
+| `ADS_LEFT_URL`, `ADS_RIGHT_URL` | Link khi bấm vào banner |
+| `ADS_CONTACT` | Email hoặc số điện thoại hiện trên khung trống "Đặt quảng cáo tại đây". `ADS_ENABLED=0` để tắt cả hai |
+| `DONATE_ENABLED=0` | Ẩn nút ủng hộ |
+| `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` | Mã xác minh Google Search Console / Bing |
+
+Chạy local không cần Redis: tài khoản lưu trong `.data/kv.json`.

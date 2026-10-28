@@ -7,8 +7,14 @@ import { imageSrcSet, SIZES } from "@/lib/img";
 import { Thumb } from "./client";
 import { BlurText } from "./BlurText";
 
+/** The card's section: a site section, the reader's own (carried on the article), or a plain fallback. */
+export function catOf(a: Article) {
+  if (a.own) return { slug: a.category, vi: a.own.name, en: a.own.name, color: a.own.color };
+  return getCategory(a.category) ?? { slug: a.category, vi: "Nguồn riêng", en: "Own source", color: "#64748b" };
+}
+
 export function Meta({ a, lang, showCat = true }: { a: Article; lang: Lang; showCat?: boolean }) {
-  const cat = getCategory(a.category)!;
+  const cat = catOf(a);
   return (
     <div className="meta">
       {showCat && (
@@ -36,7 +42,7 @@ export function ArticleCard({
   showCat?: boolean;
   priority?: boolean; // above the fold: load at once, no fade
 }) {
-  const cat = getCategory(a.category)!;
+  const cat = catOf(a);
   return (
     <article className={`card ${variant}`}>
       <Link href={`/a/${a.id}`} className="cover">
