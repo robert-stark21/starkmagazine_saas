@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { AutoRefresh, CardPrefetch, CardTransitions, Grain, NavProgress, Spotlight } from "@/components/client";
 import { Header } from "@/components/Header";
 import { lastUpdated, REFRESH_SECONDS } from "@/lib/feeds";
-import { Be_Vietnam_Pro, JetBrains_Mono, Literata, Manrope, Nunito, Oswald, Playfair_Display, Space_Grotesk } from "next/font/google";
+import { Anton, Be_Vietnam_Pro, Grenze_Gotisch, JetBrains_Mono, Literata, Manrope, Nunito, Old_Standard_TT, Oswald, Playfair_Display, Space_Grotesk } from "next/font/google";
 import { bgVars, themeCss } from "@/lib/themes";
 import { getSettings } from "@/lib/prefs";
 import { Analytics } from "@vercel/analytics/next";
@@ -26,7 +26,11 @@ const oswald = Oswald({ subsets: ["latin", "latin-ext", "vietnamese"], display: 
 const grotesk = Space_Grotesk({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-grotesk", preload: false });
 const mono = JetBrains_Mono({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-mono", preload: false });
 const playfair = Playfair_Display({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-playfair", preload: false });
-const FONT_VARS = [bevn, nunito, oswald, grotesk, mono, playfair].map((f) => f.variable).join(" ");
+// "Báo xưa": blackletter masthead, condensed banner headlines, old book face for the text.
+const gothic = Grenze_Gotisch({ subsets: ["latin", "latin-ext", "vietnamese"], weight: ["600", "800"], display: "swap", variable: "--font-gothic", preload: false });
+const anton = Anton({ subsets: ["latin", "latin-ext", "vietnamese"], weight: "400", display: "swap", variable: "--font-anton", preload: false });
+const oldStd = Old_Standard_TT({ subsets: ["latin", "latin-ext", "vietnamese"], weight: ["400", "700"], style: ["normal", "italic"], display: "swap", variable: "--font-oldstd", preload: false });
+const FONT_VARS = [bevn, nunito, oswald, grotesk, mono, playfair, gothic, anton, oldStd].map((f) => f.variable).join(" ");
 const THEME_CSS = themeCss();
 
 export const metadata: Metadata = {

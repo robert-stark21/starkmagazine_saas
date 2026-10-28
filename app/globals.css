@@ -1197,19 +1197,24 @@ a, button { touch-action: manipulation; }
 /* ---------- Báo xưa: an old printed newspaper ---------- */
 :root[data-theme="bao-xua"]:not(.kindle) { --on-brand: #f5eedb; }
 :root[data-theme="bao-xua"]:not(.kindle) body { font-family: var(--font-reading), Georgia, "Times New Roman", serif; }
-:root[data-theme="bao-xua"]:not(.kindle) :is(h1, h2, .card h3, .tag) { font-family: var(--font-playfair), var(--font-reading), Georgia, serif; }
-/* Masthead: the logo centred over a double rule, date and motto either side. */
-:root[data-theme="bao-xua"]:not(.kindle) header.site { background: var(--bg); border-bottom: 0; }
-:root[data-theme="bao-xua"]:not(.kindle) .top { height: auto; padding: 14px 20px 10px; display: grid; grid-template-columns: 1fr auto 1fr; border-bottom: 3px double var(--text); }
-:root[data-theme="bao-xua"]:not(.kindle) .brand { grid-column: 2; grid-row: 1; justify-self: center; }
-:root[data-theme="bao-xua"]:not(.kindle) .brand .logo { height: 44px; color: var(--text); }
-:root[data-theme="bao-xua"]:not(.kindle) .brand .logo [fill="#cefe0c"] { fill: var(--text); }
-:root[data-theme="bao-xua"]:not(.kindle) .tag { grid-column: 1; grid-row: 1; font-style: italic; font-size: 15px; color: var(--text); }
-:root[data-theme="bao-xua"]:not(.kindle) .right { grid-column: 3; grid-row: 1; }
-:root[data-theme="bao-xua"]:not(.kindle) .date { font-variant: small-caps; letter-spacing: .03em; }
-:root[data-theme="bao-xua"]:not(.kindle) .cats { border-top: 0; border-bottom: 1px solid var(--text); }
+:root[data-theme="bao-xua"]:not(.kindle) :is(h1, h2, h3, .tag) { font-family: var(--font-playfair), var(--font-reading), Georgia, serif; }
+/* Masthead like an old daily: issue line and controls, the name in blackletter, the motto between rules.
+   Not sticky: a masthead this tall would cover the page. */
+.np-name, .np-ear, .np-motto { display: none; }
+:root[data-theme="bao-xua"]:not(.kindle) body { font-family: var(--font-oldstd), var(--font-reading), Georgia, serif; }
+:root[data-theme="bao-xua"]:not(.kindle) header.site { background: var(--bg); border-bottom: 0; position: relative; }
+:root[data-theme="bao-xua"]:not(.kindle) .top { height: auto; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "ear ctl" "name name" "motto motto"; align-items: center; padding: 10px 20px 0; border-bottom: 0; }
+:root[data-theme="bao-xua"]:not(.kindle) .np-ear { display: block; grid-area: ear; font-variant: small-caps; font-size: 14px; letter-spacing: .04em; }
+:root[data-theme="bao-xua"]:not(.kindle) .right { grid-area: ctl; justify-self: end; }
+:root[data-theme="bao-xua"]:not(.kindle) .brand { grid-area: name; justify-self: stretch; justify-content: center; border-top: 1px solid var(--text); margin-top: 8px; padding: 6px 0 2px; }
+:root[data-theme="bao-xua"]:not(.kindle) .brand .logo { display: none; }
+:root[data-theme="bao-xua"]:not(.kindle) .np-name { display: block; font-family: var(--font-gothic), var(--font-playfair), serif; font-weight: 800; font-size: clamp(64px, 10vw, 128px); line-height: .9; letter-spacing: .01em; color: var(--text); }
+:root[data-theme="bao-xua"]:not(.kindle) .tag { display: none; }
+:root[data-theme="bao-xua"]:not(.kindle) .np-motto { display: block; grid-area: motto; text-align: center; border-top: 3px double var(--text); padding: 5px 0 4px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4em; }
+:root[data-theme="bao-xua"]:not(.kindle) .date { font-variant: small-caps; letter-spacing: .03em; color: var(--text); }
+:root[data-theme="bao-xua"]:not(.kindle) .cats { border-top: 1px solid var(--text); border-bottom: 3px double var(--text); }
 :root[data-theme="bao-xua"]:not(.kindle) .cats .row { justify-content: safe center; }
-:root[data-theme="bao-xua"]:not(.kindle) .cats a { text-transform: uppercase; letter-spacing: .1em; font-size: 12.5px; font-weight: 600; color: var(--text); }
+:root[data-theme="bao-xua"]:not(.kindle) .cats a { text-transform: uppercase; letter-spacing: .1em; font-size: 12.5px; font-weight: 700; color: var(--text); padding: 9px 12px; }
 :root[data-theme="bao-xua"]:not(.kindle) .cats a.on { border-bottom-color: var(--text); }
 /* Stories: no boxes, columns divided by thin rules, black-and-white photos. */
 :root[data-theme="bao-xua"]:not(.kindle) .card { background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
@@ -1246,14 +1251,104 @@ a, button { touch-action: manipulation; }
   :root[data-theme="bao-xua"]:not(.kindle) .grid > .card { border-left: 0; padding: 0 0 14px; border-bottom: 1px solid var(--line); }
 }
 @media (max-width: 760px) {
-  :root[data-theme="bao-xua"]:not(.kindle) .top { grid-template-columns: auto 1fr; padding: 10px 16px; }
-  :root[data-theme="bao-xua"]:not(.kindle) .brand { grid-column: 1; justify-self: start; }
-  :root[data-theme="bao-xua"]:not(.kindle) .brand .logo { height: 30px; }
-  :root[data-theme="bao-xua"]:not(.kindle) .right { grid-column: 2; }
-  :root[data-theme="bao-xua"]:not(.kindle) .tag { display: none; }
+  :root[data-theme="bao-xua"]:not(.kindle) .top { grid-template-areas: "ctl ctl" "name name" "motto motto"; padding: 8px 16px 0; }
+  :root[data-theme="bao-xua"]:not(.kindle) .np-ear, :root[data-theme="bao-xua"]:not(.kindle) .date { display: none; }
+  :root[data-theme="bao-xua"]:not(.kindle) .np-name { font-size: 54px; }
+  :root[data-theme="bao-xua"]:not(.kindle) .np-motto { letter-spacing: .22em; font-size: 11px; }
   :root[data-theme="bao-xua"]:not(.kindle) .lead > :first-child { padding-right: 0; }
   :root[data-theme="bao-xua"]:not(.kindle) .lead aside { border-left: 0; padding-left: 0; border-top: 3px double var(--text); padding-top: 10px; }
   :root[data-theme="bao-xua"]:not(.kindle) .card.hero h3 { font-size: 28px; }
+}
+
+/* ---------- Báo xưa: the newspaper layout (components/Newspaper.tsx) ---------- */
+.np { padding-top: 18px; padding-bottom: 40px; }
+.np a.cover { display: block; color: inherit; }
+.np-story h3 { margin: 0; font-weight: 800; line-height: 1.15; letter-spacing: -0.005em; text-wrap: balance; }
+.np-story a:hover h3 { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.np-kick { display: block; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--accent); margin-bottom: 4px; }
+.np-ex { margin: 6px 0 0; font-size: 15px; line-height: 1.5; text-align: justify; hyphens: auto; }
+.np-by { margin: 6px 0 0; font-size: 12.5px; font-style: italic; color: var(--muted); }
+.np-fig { margin: 0 0 8px; }
+.np-fig .thumb { border-radius: 0; aspect-ratio: 4 / 3; }
+.np-fig img { filter: grayscale(1) sepia(.3) contrast(1.12) brightness(.95); }
+.np-fig figcaption { margin-top: 5px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .1em; text-align: center; color: var(--muted); }
+/* Headline across the whole page, like "CUỘC HỒI-LOAN CỦA ĐỨC BẢO-ĐẠI". */
+.np-banner { margin: 0 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--text); text-align: center; font-family: var(--font-anton), var(--font-oswald), Impact, sans-serif !important; font-weight: 400; text-transform: uppercase; font-size: clamp(30px, 4.6vw, 58px); line-height: 1.04; letter-spacing: .01em; text-wrap: balance; }
+.np-banner a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+/* Three columns with rules between them, the big photo in the middle. */
+.np-front { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.75fr) minmax(0, 1fr); }
+.np-front > * { padding: 0 18px; }
+.np-front > :first-child { padding-left: 0; }
+.np-front > :last-child { padding-right: 0; }
+.np-front > * + * { border-left: 1px solid var(--text); }
+.np-col { display: flex; flex-direction: column; }
+.np-col > .np-story + .np-story { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+.np-col h3 { font-size: 19px; }
+.np-lead .np-fig .thumb { aspect-ratio: 3 / 2; }
+.np-lead .np-ex { font-size: 16.5px; columns: 2; column-gap: 22px; column-rule: 1px solid var(--line); }
+.np-drop::first-letter { float: left; font-family: var(--font-playfair), serif; font-weight: 900; font-size: 3.4em; line-height: .82; margin: .06em .08em 0 0; }
+.np-more { margin: 8px 0 0; text-align: right; font-style: italic; font-size: 13.5px; }
+.np-under { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; margin-top: 14px; padding-top: 12px; border-top: 3px double var(--text); }
+.np-under > * + * { border-left: 1px solid var(--line); padding-left: 18px; }
+.np-under h3 { font-size: 20px; }
+:root[data-theme="bao-xua"]:not(.kindle) .thumb.ph { filter: grayscale(1) sepia(.35); }
+/* "Tin vắn": short news in a ruled box. */
+.np-wire { margin: 22px 0 0; border: 1px solid var(--text); outline: 1px solid var(--text); outline-offset: 3px; padding: 10px 16px 14px; }
+.np-wire > h2 { margin: 0 0 8px; text-align: center; font-size: 15px; text-transform: uppercase; letter-spacing: .3em; }
+.np-wire-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 24px; }
+.np-brief { padding: 7px 0 7px 16px; border-top: 1px dotted var(--muted); position: relative; }
+.np-brief::before { content: "■"; position: absolute; left: 0; top: 8px; font-size: 10px; }
+.np-brief h3 { font-size: 15px; font-weight: 700; }
+/* Sections: a dark label bar, one big story and four small ones. */
+.np-sec { margin: 34px 0 0; content-visibility: auto; contain-intrinsic-size: auto 560px; }
+.np-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--text); color: var(--bg); padding: 5px 12px; margin-bottom: 14px; }
+.np-label h2 { margin: 0; font-size: 21px; font-style: italic; font-weight: 700; letter-spacing: .01em; }
+.np-all { font-size: 13px; font-style: italic; }
+.np-label a:hover { text-decoration: underline; }
+.np-sgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.np-sgrid > * { padding: 0 16px; border-left: 1px solid var(--line); }
+.np-sgrid > .np-feature { grid-column: span 2; grid-row: span 2; padding-left: 0; border-left: 0; }
+.np-sgrid > .np-feature ~ :nth-child(4), .np-sgrid > .np-feature ~ :nth-child(5) { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+.np-sgrid > :not(.np-feature):first-child { padding-left: 0; border-left: 0; }
+.np-sgrid h3 { font-size: 18px; }
+.np-feature h3 { font-size: 28px; }
+.np-feature .np-fig .thumb { aspect-ratio: 16 / 9; }
+.np-feature .np-ex { font-size: 16px; }
+/* A section page after its front: ruled columns. */
+.np-cols { margin-top: 28px; border-top: 3px double var(--text); padding-top: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 22px; }
+.np-cols > * { padding: 0 16px; border-left: 1px solid var(--line); }
+.np-cols > :nth-child(4n + 1) { padding-left: 0; border-left: 0; }
+.np-cols > :nth-child(4n) { padding-right: 0; }
+.np-cols h3 { font-size: 18px; }
+@media (max-width: 1000px) {
+  .np-front { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+  .np-front > .np-l { grid-column: 1 / -1; grid-row: 2; flex-direction: row; gap: 18px; border-left: 0; border-top: 1px solid var(--text); margin-top: 16px; padding: 14px 0 0; }
+  .np-front > .np-l > .np-story { flex: 1; border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }
+  .np-front > .np-c { padding-left: 0; border-left: 0; }
+  .np-wire-list, .np-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .np-cols > * { padding: 0 14px !important; border-left: 1px solid var(--line) !important; }
+  .np-cols > :nth-child(2n + 1) { padding-left: 0 !important; border-left: 0 !important; }
+  .np-sgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .np-sgrid > .np-feature { grid-column: 1 / -1; grid-row: auto; margin-bottom: 14px; }
+  .np-sgrid > * { border-top: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }
+  .np-sgrid > .np-feature ~ :nth-child(even) { padding-left: 0; border-left: 0; }
+  .np-sgrid > .np-feature ~ :nth-child(n + 4) { border-top: 1px solid var(--line) !important; padding-top: 12px !important; margin-top: 12px !important; }
+}
+@media (max-width: 640px) {
+  .np-front { grid-template-columns: minmax(0, 1fr); }
+  .np-front > * { padding: 0 !important; border-left: 0 !important; }
+  .np-front > .np-l { flex-direction: column; grid-row: auto; }
+  .np-front > .np-c { order: -1; margin-bottom: 16px; }
+  .np-front > .np-l { border-top: 1px solid var(--text) !important; padding-top: 14px !important; margin-top: 0; }
+  .np-front > .np-l > .np-story + .np-story { border-top: 1px solid var(--line) !important; padding-top: 12px !important; }
+  .np-front > .np-r { border-top: 1px solid var(--text) !important; margin-top: 16px; padding-top: 14px !important; }
+  .np-lead .np-ex { columns: 1; }
+  .np-under { grid-template-columns: minmax(0, 1fr); }
+  .np-under > * + * { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+  .np-wire-list, .np-cols, .np-sgrid { grid-template-columns: minmax(0, 1fr); }
+  .np-cols > *, .np-sgrid > * { padding: 0 !important; border-left: 0 !important; }
+  .np-cols > * + *, .np-sgrid > * + * { border-top: 1px solid var(--line) !important; padding-top: 12px !important; margin-top: 0 !important; }
+  .np-feature h3 { font-size: 23px; }
 }
 
 /* ---------- Page background: colour (Settings → Theme) and pattern ---------- */
@@ -1354,3 +1449,8 @@ a, button { touch-action: manipulation; }
   .lang button { padding: 6px 10px; }
 }
 @media (max-width: 380px) { .kindle-toggle { display: none; } }
+
+/* The floating donate button sits above a settings Save bar instead of covering its buttons. */
+@media (max-width: 1500px) {
+  body:has(.save-bar) .donate { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 76px); }
+}

@@ -5,11 +5,12 @@ import { ShinyText } from "@/components/BlurText";
 import { getAllArticles, hasUntranslated, localize } from "@/lib/feeds";
 import { RefreshSoon } from "@/components/client";
 import { warm } from "@/lib/warm";
-import { visibleCategories, withoutHiddenSources } from "@/lib/prefs";
+import { getSettings, visibleCategories, withoutHiddenSources } from "@/lib/prefs";
 import { getAccount } from "@/lib/auth";
 import { ownArticles, ownCategories } from "@/lib/own";
 import { getLang, UI } from "@/lib/lang";
 import { ArticleCard } from "@/components/ArticleCard";
+import { PaperFront, PaperSection, pickFront } from "@/components/Newspaper";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
@@ -30,15 +31,18 @@ export default async function Home() {
     .filter((a) => shownCats.has(a.category))
     .sort((a, b) => b.published.localeCompare(a.published));
 
+  // The "Báo xưa" theme sets the page like a printed front page (components/Newspaper.tsx).
+  const paper = (await getSettings()).theme === "bao-xua";
+  const front = paper ? pickFront(all) : undefined;
   const withImg = all.filter((a) => a.image);
-  const hero = withImg[0] ?? all[0];
-  const side = all.filter((a) => a !== hero).slice(0, 5);
+  const hero = front?.hero ?? withImg[0] ?? all[0];
+  const side = paper ? [] : all.filter((a) => a !== hero).slice(0, 5);
   const sections = cats.map((c) => ({
     c,
-    items: all.filter((a) => a.category === c.slug && a !== hero).slice(0, 4),
+    items: all.filter((a) => a.category === c.slug && !(front ? front.used.has(a) : a === hero)).slice(0, paper ? 5 : 4),
   })).filter((s) => s.items.length);
 
-  const shown = [hero, ...side, ...sections.flatMap((s) => s.items)].filter(Boolean);
+  const shown = [hero, ...(front ? [...front.used] : []), ...side, ...sections.flatMap((s) => s.items)].filter(Boolean);
   const loc = new Map((await localize(shown, lang)).map((a) => [a.id, a]));
   // Prepare the stories on screen in the background, so they open at once.
   warm(shown.slice(0, 16), lang, true);
@@ -52,6 +56,21 @@ export default async function Home() {
         <link rel="preload" as="image" href={imgSrc(hero.image)} imageSrcSet={imageSrcSet(hero.image)} imageSizes={SIZES.hero} fetchPriority="high" />
       )}
       {pending && <RefreshSoon />}
+      {paper ? (
+        <main className="wrap np">
+          {!hero ? (
+            <p className="empty">{t.noArticles}</p>
+          ) : (
+            <PaperFront
+              lang={lang}
+              front={{ hero: L(hero), left: front!.left.map(L), right: front!.right.map(L), center: front!.center.map(L), wire: front!.wire.map(L), used: front!.used }}
+            />
+          )}
+          {sections.map(({ c, items }) => (
+            <PaperSection key={c.slug} c={c} items={items.map(L)} lang={lang} seeAll={t.seeAll} />
+          ))}
+        </main>
+      ) : (
       <main className="wrap">
         {!hero ? (
           <p className="empty">{t.noArticles}</p>
@@ -83,6 +102,7 @@ export default async function Home() {
           </section>
         ))}
       </main>
+      )}
     </>
   );
 }

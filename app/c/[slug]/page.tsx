@@ -8,6 +8,7 @@ import { warm } from "@/lib/warm";
 import { getCategory, MOODBOARD, SOURCES } from "@/lib/sources";
 import { getLang, UI } from "@/lib/lang";
 import { ArticleCard } from "@/components/ArticleCard";
+import { PaperColumns, PaperFront, pickFront } from "@/components/Newspaper";
 import { Charts } from "@/components/Charts";
 import { EconPanels, LiquidationPanels } from "@/components/MarketPanels";
 import { WeatherStrip } from "@/components/WeatherStrip";
@@ -72,7 +73,7 @@ export default async function CategoryPage({
   const cat = categoryFor(slug, account);
   if (!cat) notFound();
   const mine = slug.startsWith("u-");
-  const { widgetsOff } = await getSettings();
+  const { widgetsOff, theme } = await getSettings();
   const on = (id: string) => !widgetsOff.has(id);
   const lang = await getLang();
   const t = UI[lang];
@@ -139,7 +140,18 @@ export default async function CategoryPage({
             <EconPanels lang={lang} />
           </Suspense>
         )}
-        {loc.length ? (
+        {loc.length && theme === "bao-xua" && !moodboard ? (
+          // "Báo xưa": the section set like a newspaper page.
+          (() => {
+            const front = pickFront(loc);
+            return (
+              <div className="np">
+                <PaperFront front={front} lang={lang} kicker={false} />
+                <PaperColumns items={loc.filter((a) => !front.used.has(a))} lang={lang} />
+              </div>
+            );
+          })()
+        ) : loc.length ? (
           <div className={moodboard ? "masonry" : "grid cat-grid"}>
             {loc.map((a, i) => (
               <ArticleCard key={a.id} a={a} lang={lang} showCat={false} variant={moodboard ? "tile" : "default"} priority={i < 2} />

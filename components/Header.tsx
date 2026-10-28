@@ -9,6 +9,7 @@ import { UI } from "@/lib/lang";
 import { getQuotes } from "@/lib/prices";
 import { CatNav, KindleToggle, LangToggle, LolTicker, MovieTicker, PriceTicker, ScoreTicker, SongTicker } from "./client";
 import { Logo } from "./Logo";
+import { issueLine } from "./Newspaper";
 
 export async function Header({ lang, updated, kindle, scheme }: { lang: Lang; updated: Date; kindle: boolean; scheme: Scheme }) {
   const t = UI[lang];
@@ -27,8 +28,13 @@ export async function Header({ lang, updated, kindle, scheme }: { lang: Lang; up
       <div className="wrap top">
         <Link href="/" className="brand" aria-label="STARK">
           <Logo className="logo" />
+          {/* Masthead name, shown only by the "Báo xưa" theme. */}
+          <span className="np-name" aria-hidden="true">Stark</span>
         </Link>
         <div className="tag">{t.tagline}</div>
+        {/* Issue line and motto of the "Báo xưa" masthead (hidden in other themes). */}
+        <div className="np-ear" aria-hidden="true">{issueLine(lang)}</div>
+        <div className="np-motto" aria-hidden="true">{lang === "vi" ? "Nhựt báo · Thông tin · Nghị luận" : "Daily · News · Opinion"}</div>
         <div className="right">
           <span className="date"><span className="cap">{today}</span> · {t.updated} {time}</span>
           <SchemeToggle scheme={scheme} lang={lang} />

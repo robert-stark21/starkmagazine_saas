@@ -8,7 +8,7 @@ import { Thumb } from "./client";
 import { BlurText } from "./BlurText";
 
 /** The card's section: a site section, the reader's own (carried on the article), or a plain fallback. */
-function catOf(a: Article) {
+export function catOf(a: Article) {
   if (a.own) return { slug: a.category, vi: a.own.name, en: a.own.name, color: a.own.color };
   return getCategory(a.category) ?? { slug: a.category, vi: "Nguồn riêng", en: "Own source", color: "#64748b" };
 }
