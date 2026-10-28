@@ -41,8 +41,6 @@ export async function Header({ lang, updated, kindle, scheme }: { lang: Lang; up
         items={[
           { href: "/", slug: "", label: t.home },
           ...cats.map((c) => ({ href: `/c/${c.slug}`, slug: c.slug, label: c[lang], color: c.color })),
-          // Pick which sections show here.
-          { href: "/tai-khoan", slug: "__edit", label: lang === "vi" ? "＋ Tùy chỉnh" : "＋ Customise", className: "cat-edit" },
         ]}
       />
     </header>

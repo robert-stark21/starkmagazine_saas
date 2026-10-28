@@ -206,3 +206,13 @@ export const MOODBOARD = new Set(["inspiration"]);
 export function getCategory(slug: string) {
   return CATEGORIES.find((c) => c.slug === slug);
 }
+
+/**
+ * Short stable key for a source within a section (several feeds of one publisher, like
+ * RGB, share it): readers switch sources off by this key.
+ */
+export function sourceKey(category: string, name: string): string {
+  let h = 2166136261;
+  for (const ch of `${category}|${name}`) h = Math.imul(h ^ ch.codePointAt(0)!, 16777619);
+  return (h >>> 0).toString(36).padStart(7, "0").slice(-7);
+}

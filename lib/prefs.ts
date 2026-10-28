@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
-import { CATEGORIES, type Category } from "./sources";
-import { getTheme, parseScheme, type Scheme } from "./themes";
+import { CATEGORIES, sourceKey, type Category } from "./sources";
+import { formatBg, getTheme, parseBg, parseScheme, type Scheme } from "./themes";
 import { WIDGETS } from "./widgets";
 
 /**
@@ -14,8 +14,10 @@ import { WIDGETS } from "./widgets";
  *   theme   theme id (lib/themes.ts)
  *   scheme  auto | light | dark
  *   wg      widgets switched off: "prices,scores"
+ *   bg      page background "preset|#color|pattern" (lib/themes.ts)
+ *   srcoff  site sources switched off, by sourceKey(): "a1b2c3,d4e5f6"
  */
-export const SETTING_KEYS = ["sec", "theme", "scheme", "wg"] as const;
+export const SETTING_KEYS = ["sec", "theme", "scheme", "wg", "bg", "srcoff"] as const;
 export type SettingKey = (typeof SETTING_KEYS)[number];
 export type Settings = Partial<Record<SettingKey, string>>;
 export const PREFS_COOKIE = "sec";
@@ -56,6 +58,10 @@ export function cleanSetting(key: SettingKey, v: string): string {
       return getTheme(v).id;
     case "scheme":
       return parseScheme(v);
+    case "bg":
+      return formatBg(parseBg(v));
+    case "srcoff":
+      return [...new Set(v.split(","))].filter((k) => /^[a-z0-9_-]{6,10}$/i.test(k)).slice(0, 300).join(",");
     case "wg": {
       const ids = new Set<string>(WIDGETS.map((w) => w.id));
       return [...new Set(v.split(","))].filter((w) => ids.has(w)).join(",");
@@ -97,6 +103,8 @@ export async function getSettings() {
     theme: getTheme(c.get("theme")?.value).id,
     scheme: parseScheme(c.get("scheme")?.value) as Scheme,
     widgetsOff: new Set((c.get("wg")?.value ?? "").split(",").filter(Boolean)),
+    bg: parseBg(c.get("bg")?.value),
+    sourcesOff: new Set((c.get("srcoff")?.value ?? "").split(",").filter(Boolean)),
   };
 }
 
@@ -113,4 +121,11 @@ export async function widgetOn(id: string): Promise<boolean> {
 export async function visibleCategories(own: Category[] = []): Promise<Category[]> {
   const bySlug = new Map([...CATEGORIES, ...own].map((c) => [c.slug, c]));
   return (await getPrefs(own.map((c) => c.slug))).filter((p) => !p.hidden).map((p) => bySlug.get(p.slug)!);
+}
+
+/** Drops stories from the site sources this reader switched off. */
+export async function withoutHiddenSources<T extends { category: string; source: string; own?: unknown }>(list: T[]): Promise<T[]> {
+  const { sourcesOff } = await getSettings();
+  if (!sourcesOff.size) return list;
+  return list.filter((a) => a.own !== undefined || !sourcesOff.has(sourceKey(a.category, a.source)));
 }

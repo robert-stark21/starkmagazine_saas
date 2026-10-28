@@ -5,7 +5,7 @@ import { ShinyText } from "@/components/BlurText";
 import { getAllArticles, hasUntranslated, localize } from "@/lib/feeds";
 import { RefreshSoon } from "@/components/client";
 import { warm } from "@/lib/warm";
-import { visibleCategories } from "@/lib/prefs";
+import { visibleCategories, withoutHiddenSources } from "@/lib/prefs";
 import { getAccount } from "@/lib/auth";
 import { ownArticles, ownCategories } from "@/lib/own";
 import { getLang, UI } from "@/lib/lang";
@@ -26,7 +26,7 @@ export default async function Home() {
   const cats = await visibleCategories(ownCategories(account));
   const shownCats = new Set(cats.map((c) => c.slug));
   const [site, own] = await Promise.all([getAllArticles(), ownArticles(account)]);
-  const all = [...own, ...site]
+  const all = [...own, ...(await withoutHiddenSources(site))]
     .filter((a) => shownCats.has(a.category))
     .sort((a, b) => b.published.localeCompare(a.published));
 

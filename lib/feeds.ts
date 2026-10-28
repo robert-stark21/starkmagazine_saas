@@ -65,7 +65,8 @@ function findImage(item: Item): string | undefined {
     : undefined;
   const html = `${item.contentEncoded ?? ""} ${item.content ?? ""} ${item.description ?? ""}`;
   const img = html.match(/<img[^>]+(?:data-src|src)=["']([^"']+)["']/i)?.[1];
-  const url = mc || mt || enc || img;
+  // Some feeds escape "&" in image addresses twice ("&amp;#038;").
+  const url = (mc || mt || enc || img)?.replace(/&amp;/g, "&").replace(/&#0*38;/g, "&");
   return url?.startsWith("//") ? `https:${url}` : url;
 }
 

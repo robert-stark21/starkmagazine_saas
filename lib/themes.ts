@@ -82,11 +82,64 @@ export const THEMES: Theme[] = [
     light: { bg: "#f3f7fa", surface: "#ffffff", text: "#0b1220", muted: "#5b6b80", line: "#d9e2ec", accent: "#0891b2", brand: "#22d3ee" },
     dark: { bg: "#060b14", surface: "#0c1422", text: "#e2f3ff", muted: "#7f93ad", line: "#1a2a40", accent: "#22d3ee", brand: "#22d3ee" },
   },
+  {
+    id: "bao-xua",
+    vi: "Báo xưa",
+    en: "Old paper",
+    descVi: "Giấy ngả vàng, chữ có chân, bố cục như tờ báo in.",
+    descEn: "Yellowed paper, serif type, laid out like a printed newspaper.",
+    font: "var(--font-reading)",
+    radius: "0px",
+    light: { bg: "#efe6cf", surface: "#f5eedb", text: "#1c1814", muted: "#5d5446", line: "#3a3228", accent: "#7f1d1d", brand: "#7f1d1d" },
+    dark: { bg: "#1a1813", surface: "#211e17", text: "#e9e0c9", muted: "#a89e86", line: "#5a5040", accent: "#d6a76a", brand: "#d6a76a" },
+  },
 ];
 
 export type Scheme = "auto" | "light" | "dark";
 export const THEME_COOKIE = "theme";
 export const SCHEME_COOKIE = "scheme";
+
+// ---------- Page background ----------
+/** Background patterns laid over the page colour. "grain" is the original film grain. */
+export const PATTERNS = [
+  { id: "grain", vi: "Mặc định", en: "Default" },
+  { id: "none", vi: "Trơn", en: "Plain" },
+  { id: "dots", vi: "Chấm bi", en: "Dots" },
+  { id: "grid", vi: "Lưới", en: "Grid" },
+  { id: "lines", vi: "Sọc chéo", en: "Stripes" },
+  { id: "paper", vi: "Giấy", en: "Paper" },
+] as const;
+
+/** Suggested page colours: [light, dark] pairs so either mode stays readable. */
+export const BG_PRESETS = [
+  { id: "", vi: "Theo theme", en: "Theme's own", light: "", dark: "" },
+  { id: "kem", vi: "Kem", en: "Cream", light: "#f7f1e3", dark: "#1d1a14" },
+  { id: "xanh-nhat", vi: "Xanh nhạt", en: "Mist blue", light: "#eef4fb", dark: "#0d1522" },
+  { id: "bac-ha", vi: "Bạc hà", en: "Mint", light: "#ecf7f1", dark: "#0d1a15" },
+  { id: "hong-phan", vi: "Hồng phấn", en: "Blush", light: "#fbf0f3", dark: "#1f1418" },
+  { id: "oai-huong", vi: "Oải hương", en: "Lavender", light: "#f3f0fb", dark: "#16131f" },
+  { id: "xam-da", vi: "Xám đá", en: "Stone", light: "#eeeeec", dark: "#151517" },
+] as const;
+
+export type Background = { preset: string; color: string; pattern: string };
+
+/** "preset|#color|pattern" → parts (each may be empty: the theme's own). */
+export function parseBg(raw?: string | null): Background {
+  const [preset = "", color = "", pattern = ""] = (raw ?? "").split("|");
+  return {
+    preset: BG_PRESETS.some((p) => p.id === preset) ? preset : "",
+    color: /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : "",
+    pattern: PATTERNS.some((p) => p.id === pattern) ? pattern : "",
+  };
+}
+export const formatBg = (b: Background) => (b.preset || b.color || b.pattern ? `${b.preset}|${b.color}|${b.pattern}` : "");
+
+/** Inline CSS variables for <html>: the page colour for light and dark. */
+export function bgVars(b: Background): Record<string, string> {
+  if (b.color) return { "--page-bg-light": b.color, "--page-bg-dark": b.color };
+  const p = BG_PRESETS.find((x) => x.id === b.preset);
+  return p && p.light ? { "--page-bg-light": p.light, "--page-bg-dark": p.dark } : {};
+}
 
 export const getTheme = (id?: string | null) => THEMES.find((t) => t.id === id) ?? THEMES[0];
 export const parseScheme = (s?: string | null): Scheme => (s === "light" || s === "dark" ? s : "auto");

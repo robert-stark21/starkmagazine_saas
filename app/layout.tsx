@@ -5,8 +5,8 @@ import { Suspense } from "react";
 import { AutoRefresh, CardPrefetch, CardTransitions, Grain, NavProgress, Spotlight } from "@/components/client";
 import { Header } from "@/components/Header";
 import { lastUpdated, REFRESH_SECONDS } from "@/lib/feeds";
-import { Be_Vietnam_Pro, JetBrains_Mono, Literata, Manrope, Nunito, Oswald, Space_Grotesk } from "next/font/google";
-import { themeCss } from "@/lib/themes";
+import { Be_Vietnam_Pro, JetBrains_Mono, Literata, Manrope, Nunito, Oswald, Playfair_Display, Space_Grotesk } from "next/font/google";
+import { bgVars, themeCss } from "@/lib/themes";
 import { getSettings } from "@/lib/prefs";
 import { Analytics } from "@vercel/analytics/next";
 import { Donate } from "@/components/Donate";
@@ -25,7 +25,8 @@ const nunito = Nunito({ subsets: ["latin", "latin-ext", "vietnamese"], display: 
 const oswald = Oswald({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-oswald", preload: false });
 const grotesk = Space_Grotesk({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-grotesk", preload: false });
 const mono = JetBrains_Mono({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-mono", preload: false });
-const FONT_VARS = [bevn, nunito, oswald, grotesk, mono].map((f) => f.variable).join(" ");
+const playfair = Playfair_Display({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-playfair", preload: false });
+const FONT_VARS = [bevn, nunito, oswald, grotesk, mono, playfair].map((f) => f.variable).join(" ");
 const THEME_CSS = themeCss();
 
 export const metadata: Metadata = {
@@ -68,7 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const lang = await getLang();
   const kindle = await getKindle();
   const donate = donateInfo();
-  const { theme, scheme } = await getSettings();
+  const { theme, scheme, bg } = await getSettings();
   // Search engines: who publishes the site, and its search box.
   const jsonLd = {
     "@context": "https://schema.org",
@@ -82,6 +83,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={lang}
       data-theme={theme}
       data-scheme={scheme}
+      data-pattern={bg.pattern || undefined}
+      style={bgVars(bg) as React.CSSProperties}
       className={`${manrope.variable} ${literata.variable} ${FONT_VARS}${kindle ? " kindle" : ""}`}
     >
       <head>

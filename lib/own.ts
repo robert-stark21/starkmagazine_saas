@@ -88,9 +88,11 @@ export async function discoverFeed(input: string): Promise<{ url: string; name: 
       if (!items.length) continue;
       const title = got.text.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i)?.[1]?.trim();
       const site = new URL(items[0].link).hostname.replace(/^www\./, "");
+      // "CarScoops - The Inside Track to…" → "CarScoops"
+      const short = title?.replace(/&amp;/g, "&").split(/\s+[-–—|:·»]\s+/)[0].trim();
       return {
         url: got.r.url,
-        name: (title && title.length < 80 ? title : site).replace(/&amp;/g, "&"),
+        name: short && short.length <= 40 ? short : site,
         site,
         lang: guessLang(items.map((i) => i.title)),
       };

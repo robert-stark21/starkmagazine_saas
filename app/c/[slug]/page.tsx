@@ -13,7 +13,7 @@ import { EconPanels, LiquidationPanels } from "@/components/MarketPanels";
 import { WeatherStrip } from "@/components/WeatherStrip";
 import { getAccount } from "@/lib/auth";
 import { categoryFor, ownArticles } from "@/lib/own";
-import { getSettings } from "@/lib/prefs";
+import { getSettings, withoutHiddenSources } from "@/lib/prefs";
 
 export const dynamic = "force-dynamic";
 // Room for translations and warm-ups to finish after the page is sent (see lib/background.ts).
@@ -42,7 +42,11 @@ const CAT_DESC: Record<string, { vi: string; en: string }> = {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const cat = getCategory(slug);
-  if (!cat) return slug.startsWith("u-") ? { robots: { index: false } } : {};
+  if (!cat) {
+    // The reader's own section: its name in the tab, never indexed.
+    const own = slug.startsWith("u-") ? categoryFor(slug, await getAccount()) : undefined;
+    return own ? { title: own.vi, robots: { index: false } } : {};
+  }
   const lang = await getLang();
   const title = lang === "vi" ? `Tin ${cat.vi}` : `${cat.en} news`;
   const description = CAT_DESC[slug]?.[lang] ?? title;
@@ -75,7 +79,7 @@ export default async function CategoryPage({
   const moodboard = MOODBOARD.has(slug);
 
   const [site, own] = await Promise.all([mine ? [] : getAllArticles(), ownArticles(account)]);
-  const items = [...own.filter((a) => a.category === slug), ...site.filter((a) => a.category === slug)]
+  const items = [...own.filter((a) => a.category === slug), ...(await withoutHiddenSources(site.filter((a) => a.category === slug)))]
     .sort((a, b) => b.published.localeCompare(a.published))
     .filter((a) => (r === "vn" || r === "intl" ? a.region === r : true))
     .filter((a) => (moodboard ? a.image : true))
