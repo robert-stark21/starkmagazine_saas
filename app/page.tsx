@@ -9,6 +9,8 @@ import { getLang, UI } from "@/lib/lang";
 import { ArticleCard } from "@/components/ArticleCard";
 
 export const dynamic = "force-dynamic";
+// Room for translations and warm-ups to finish after the page is sent (see lib/background.ts).
+export const maxDuration = 60;
 
 export default async function Home() {
   const lang = await getLang();

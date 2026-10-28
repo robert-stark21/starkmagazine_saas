@@ -15,6 +15,8 @@ import { BlurText } from "@/components/BlurText";
 import { imageSrcSet, imgSrc, SIZES } from "@/lib/img";
 
 export const dynamic = "force-dynamic";
+// Room for translations and warm-ups to finish after the page is sent (see lib/background.ts).
+export const maxDuration = 60;
 
 /**
  * Share preview (Open Graph / Twitter card): when the link is pasted into Messenger, Zalo,

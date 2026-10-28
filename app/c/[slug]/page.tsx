@@ -11,6 +11,8 @@ import { Charts } from "@/components/Charts";
 import { EconPanels, LiquidationPanels } from "@/components/MarketPanels";
 
 export const dynamic = "force-dynamic";
+// Room for translations and warm-ups to finish after the page is sent (see lib/background.ts).
+export const maxDuration = 60;
 
 export default async function CategoryPage({
   params,

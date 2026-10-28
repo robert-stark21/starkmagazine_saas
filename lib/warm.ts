@@ -1,6 +1,7 @@
 import type { Article } from "./feeds";
 import { prepareBody } from "./article";
 import { CATEGORIES, type Lang } from "./sources";
+import { background } from "./background";
 
 /**
  * Warm-up: extracts and translates articles before anyone opens them, so the article page
@@ -11,6 +12,10 @@ const CONCURRENCY = 5;
 const done = new Set<string>();
 const queue: { article: Article; lang: Lang }[] = [];
 let running = 0;
+const idle: (() => void)[] = []; // resolved when the queue is empty
+
+/** Resolves once every queued article is done. */
+const drained = () => (running || queue.length ? new Promise<void>((r) => idle.push(r)) : Promise.resolve());
 
 function pump() {
   while (running < CONCURRENCY && queue.length) {
@@ -21,6 +26,7 @@ function pump() {
       .finally(() => {
         running--;
         pump();
+        if (!running && !queue.length) idle.splice(0).forEach((r) => r());
       });
   }
 }
@@ -34,6 +40,8 @@ export function warm(articles: Article[], lang: Lang, first = false) {
   else queue.push(...jobs);
   if (done.size > 5000) done.clear();
   pump();
+  // Keep the server function alive until this batch is done (Vercel freezes it otherwise).
+  if (jobs.length) background(drained());
 }
 
 /** After a feed refresh: the newest few stories of every section, in Vietnamese. */

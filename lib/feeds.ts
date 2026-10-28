@@ -6,6 +6,7 @@ import { videoFromUrl } from "./fulltext";
 import { mockArticles } from "./mock";
 import { SCRAPERS } from "./scrapers";
 import { warmLatest } from "./warm";
+import { background } from "./background";
 
 export const REFRESH_SECONDS = 600; // 10 minutes
 
@@ -205,7 +206,7 @@ export async function getAllArticles(): Promise<Article[]> {
   if (process.env.MOCK_FEEDS === "1") return mockArticles();
   // Stale-while-revalidate: once we have articles, never make a visitor wait for the feeds.
   if (memo) {
-    if (Date.now() - memo.at >= REFRESH_SECONDS * 1000) void refreshFeeds();
+    if (Date.now() - memo.at >= REFRESH_SECONDS * 1000) background(refreshFeeds());
     return memo.articles;
   }
   return refreshFeeds();
@@ -228,7 +229,7 @@ export function refreshFeeds(): Promise<Article[]> {
     if (articles.length) {
       memo = { at: Date.now(), articles };
       // Titles first, then the bodies of the newest stories, so they open instantly.
-      void pretranslate(articles).then(() => warmLatest(articles));
+      background(pretranslate(articles).then(() => warmLatest(articles)));
     } else if (memo) {
       memo = { ...memo, at: Date.now() }; // all feeds failed: keep old articles, try again later
     }
@@ -392,8 +393,11 @@ export async function localize(articles: Article[], lang: Lang, waitMs = 1500): 
   // going in the background and fills the cache for the next visit.
   let timedOut = false;
   const original = need.map((a): [string, string] => [a.title, a.excerpt]);
+  const job = translateArticles(need, lang);
+  // If the page stops waiting, the translation still finishes and fills the cache.
+  background(job);
   const tr = await Promise.race([
-    translateArticles(need, lang),
+    job,
     new Promise<[string, string][]>((r) => setTimeout(() => ((timedOut = true), r(original)), waitMs)),
   ]);
   const map = new Map(need.map((a, i) => [a.id, { title: tr[i][0], excerpt: tr[i][1] }]));
