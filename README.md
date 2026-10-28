@@ -68,6 +68,9 @@ Bản này giữ nguyên giao diện STARK và thêm:
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Bật nút đăng nhập Google. Redirect URI: `<tên miền>/api/auth/google/callback` |
 | `DONATE_QR` | Ảnh QR: đường dẫn trong `public/` (vd `/donate-qr.png`) hoặc URL |
 | `DONATE_BANK`, `DONATE_ACCOUNT`, `DONATE_NAME`, `DONATE_NOTE` | Thông tin chuyển khoản hiện dưới QR (tùy chọn) |
+| `ADS_LEFT_IMAGE`, `ADS_RIGHT_IMAGE` | Ảnh banner quảng cáo dọc hai bên (160×600, đường dẫn trong /public hoặc URL). Chỉ hiện trên màn hình rộng từ 1480px |
+| `ADS_LEFT_URL`, `ADS_RIGHT_URL` | Link khi bấm vào banner |
+| `ADS_CONTACT` | Email hoặc số điện thoại hiện trên khung trống "Đặt quảng cáo tại đây". `ADS_ENABLED=0` để tắt cả hai |
 | `DONATE_ENABLED=0` | Ẩn nút ủng hộ |
 | `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` | Mã xác minh Google Search Console / Bing |
 

@@ -10,6 +10,8 @@ import { bgVars, themeCss } from "@/lib/themes";
 import { getSettings } from "@/lib/prefs";
 import { Analytics } from "@vercel/analytics/next";
 import { Donate } from "@/components/Donate";
+import { AdRails } from "@/components/AdRails";
+import { adsInfo } from "@/lib/ads";
 import { donateInfo } from "@/lib/donate";
 import { jsonLd as toJsonLd, SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/site";
 
@@ -73,6 +75,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const lang = await getLang();
   const kindle = await getKindle();
   const donate = donateInfo();
+  const ads = adsInfo();
   const { theme, scheme, bg } = await getSettings();
   // Search engines: who publishes the site, and its search box.
   const jsonLd = {
@@ -111,6 +114,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             © STARK · {lang === "vi" ? "Nội dung thuộc về các nguồn báo gốc." : "All content belongs to the original publishers."}
           </div>
         </footer>
+        {ads && <AdRails ads={ads} lang={lang} />}
         {donate && <Donate info={donate} lang={lang} />}
         <Analytics />
       </body>
