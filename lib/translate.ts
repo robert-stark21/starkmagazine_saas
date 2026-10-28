@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { Redis } from "@upstash/redis";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Lang } from "./sources";
@@ -15,7 +17,8 @@ import type { Lang } from "./sources";
  * ANTHROPIC_API_KEY (model from TRANSLATE_MODEL, default claude-haiku-5-5); without the key
  * everything goes through the free ones. A translator that fails (blocked, rate-limited,
  * timed out, out of credit) is skipped for 5 minutes, so pages don't wait on it. If all fail,
- * the original text is shown. Translations are cached whichever translator made them.
+ * the original text is shown. Translations are cached whichever translator made them: in
+ * memory, on disk, and in Upstash Redis when connected (shared by every server instance).
  */
 
 type Provider = {
@@ -52,6 +55,46 @@ function saveSoon() {
       console.warn("[translate] could not save translations:", String(e));
     }
   }, 5000);
+}
+
+// ---------- Shared translations (Upstash Redis) ----------
+// On Vercel every server instance has its own memory and /tmp, so a reload could land on an
+// instance that translates (and pays for) the same text again. With an Upstash Redis store
+// connected (env UPSTASH_REDIS_REST_URL / _TOKEN, or the KV_REST_API_URL / _TOKEN names
+// Vercel sets), translations are shared by every instance for 30 days. Without it, or if it
+// fails, the memory + disk cache above is used as before.
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+const redis =
+  REDIS_URL && REDIS_TOKEN
+    ? new Redis({ url: REDIS_URL, token: REDIS_TOKEN, automaticDeserialization: false, retry: { retries: 1 }, signal: () => AbortSignal.timeout(2500) })
+    : null;
+const SHARED_TTL = 30 * 24 * 3600; // seconds
+/** Short key: "t:" + 22 characters of the SHA-1 of "lang|text". */
+const sharedKey = (key: string) => "t:" + createHash("sha1").update(key).digest("base64url").slice(0, 22);
+
+/** One request for many texts. Returns null for each miss (or everything, when unavailable). */
+async function sharedGet(keys: string[]): Promise<(string | null)[]> {
+  if (!redis || !keys.length) return keys.map(() => null);
+  try {
+    const got = await redis.mget<(string | null)[]>(...keys.map(sharedKey));
+    return keys.map((_, i) => (typeof got[i] === "string" ? (got[i] as string) : null));
+  } catch (e) {
+    warn("redis", e);
+    return keys.map(() => null);
+  }
+}
+
+/** One pipelined request for all new translations. */
+async function sharedSet(entries: [string, string][]) {
+  if (!redis || !entries.length) return;
+  try {
+    const pipe = redis.pipeline();
+    for (const [k, v] of entries) pipe.set(sharedKey(k), v, { ex: SHARED_TTL });
+    await pipe.exec();
+  } catch (e) {
+    warn("redis", e);
+  }
 }
 
 const UNIT = 950; // longer texts are split into sentence groups up to this size
@@ -309,7 +352,31 @@ export async function translateMany(texts: string[], target: Lang, opts: { prefe
     }
   });
   try {
-    if (todo.length) await translatePending(texts, target, out, todo, ORDER[opts.prefer ?? "free"]);
+    // Already translated by another server instance? (one request for all of them)
+    if (todo.length && redis) {
+      const got = await sharedGet(todo.map((i) => `${target}|${texts[i]}`));
+      let hits = 0;
+      todo.splice(0, todo.length, ...todo.filter((i, j) => {
+        const v = got[j];
+        if (v === null) return true;
+        out[i] = v;
+        cache.set(`${target}|${texts[i]}`, v);
+        hits++;
+        return false;
+      }));
+      if (hits) count("shared-hit", hits);
+      if (todo.length) count("shared-miss", todo.length);
+    }
+    if (todo.length) {
+      await translatePending(texts, target, out, todo, ORDER[opts.prefer ?? "free"]);
+      // Share what was just translated (texts left in the original language are not stored).
+      await sharedSet(
+        todo.flatMap((i): [string, string][] => {
+          const v = cache.get(`${target}|${texts[i]}`);
+          return v !== undefined ? [[`${target}|${texts[i]}`, v]] : [];
+        })
+      );
+    }
   } finally {
     claimed.forEach((k) => inFlight.delete(k));
     release();

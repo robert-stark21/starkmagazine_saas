@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
     "@mozilla/readability": "^0.6.0",
+    "@upstash/redis": "^1.40.0",
     "@vercel/analytics": "^2.0.1",
     "entities": "^8.1.0",
     "hls.js": "^1.7.3",

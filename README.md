@@ -28,6 +28,10 @@ npm run dev:mock     # dữ liệu mẫu, không cần mạng
 - Chạy ở máy: tạo file `.env.local` với dòng `ANTHROPIC_API_KEY=...` (file này không bị đưa lên git).
 - `TRANSLATE_MODEL` (tuỳ chọn) chọn model; mặc định `claude-haiku-5-5` (nhanh, rẻ), có thể đổi sang `claude-opus-5-5` nếu muốn bản dịch tốt nhất.
 
+### Lưu bản dịch dùng chung (Vercel)
+
+Kết nối một database Upstash Redis (miễn phí) vào project trên Vercel: tab **Storage** → **Create Database** → **Upstash for Redis** → gói Free → **Connect** với project → **Redeploy**. Vercel tự thêm biến `KV_REST_API_URL` / `KV_REST_API_TOKEN`. Bản dịch được lưu 30 ngày và dùng chung cho mọi máy chủ, F5 không dịch lại. Không có Redis thì vẫn chạy, chỉ lưu tạm trên từng máy chủ.
+
 ## Thêm / bớt nguồn
 
 Sửa danh sách `SOURCES` trong `lib/sources.ts`. Nguồn nào lỗi sẽ được bỏ qua.
