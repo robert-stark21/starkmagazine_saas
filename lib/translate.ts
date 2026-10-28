@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +7,8 @@ import type { Lang } from "./sources";
 
 /**
  * Translation chain. Each piece of text goes to the first translator that succeeds:
- *   1. Claude    — only when ANTHROPIC_API_KEY is set (best quality, paid)
+ *   1. Claude    — only when ANTHROPIC_API_KEY is set (best quality, paid). Model from
+ *                  TRANSLATE_MODEL (default claude-haiku-5-5: fast and cheap for translation).
  *   2. Microsoft — free Bing Translator web API, no key (primary)
  *   3. Google    — free endpoint, no key (backup)
  * If all fail, the original text is shown.
@@ -164,6 +165,8 @@ const google: Provider = {
 };
 
 // ---------- Claude (optional, needs ANTHROPIC_API_KEY) ----------
+// Models that accept the server-side refusal fallback ("default" routes by refusal category).
+const FALLBACK_MODELS = /^claude-(opus-5-5|opus-5|fable-5-1|sonnet-5-5)$/;
 
 let anthropic: Anthropic | null = null;
 const TranslationsSchema = z.object({ translations: z.array(z.string()) });
@@ -175,10 +178,15 @@ const claude: Provider = {
   enabled: () => !!process.env.ANTHROPIC_API_KEY,
   async translate(texts, target) {
     anthropic ??= new Anthropic();
-    const response = await anthropic.messages.parse({
-      model: process.env.TRANSLATE_MODEL || "claude-opus-5-5",
+    const model = process.env.TRANSLATE_MODEL || "claude-haiku-5-5";
+    const fallback = FALLBACK_MODELS.test(model);
+    const response = await anthropic.beta.messages.parse({
+      model,
       max_tokens: 16000,
-      output_config: { effort: "low", format: zodOutputFormat(TranslationsSchema) },
+      // A rare policy decline (e.g. a crime story) is re-run on another model in the same call.
+      ...(fallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
+      // Translation needs little thinking: low effort keeps it fast and cheap.
+      output_config: { effort: "low", format: betaZodOutputFormat(TranslationsSchema) },
       system:
         `You translate news for a ${LANG_NAME[target]}-language magazine covering tech, finance, sport, film, design and art. ` +
         `Translate each input string into natural, fluent ${LANG_NAME[target]} as a native journalist would write it. ` +
