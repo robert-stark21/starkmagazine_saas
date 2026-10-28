@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { getAllArticles, getArticle, localize, type Article } from "@/lib/feeds";
 import type { Block } from "@/lib/fulltext";
 import { prepareBody } from "@/lib/article";
-import { getCategory, type Lang } from "@/lib/sources";
+import { type Lang } from "@/lib/sources";
+import { getAccount } from "@/lib/auth";
+import { categoryFor } from "@/lib/own";
 import { getLang, timeAgo, UI } from "@/lib/lang";
 import { ArticleCard } from "@/components/ArticleCard";
 import { ActiveCategory, ProseImage } from "@/components/client";
@@ -61,7 +63,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
   const article = await getArticle(id);
   if (!article) notFound();
   const lang = await getLang();
-  const cat = getCategory(article.category)!;
+  const account = await getAccount();
+  const cat = categoryFor(article.category, account) ?? { slug: "", vi: article.source, en: article.source, color: "#64748b" };
   // The title is usually already translated by the list page; wait briefly otherwise.
   const [top] = await localize([article], lang, 2500);
   // The feed excerpt as a short standfirst, when it says more than the title.
@@ -91,7 +94,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ id: st
       <main className="wrap">
         <article className="detail" style={{ ["--c" as any]: cat.color }}>
           <header className="d-head">
-            <Link href={`/c/${cat.slug}`} className="crumb">
+            <Link href={cat.slug ? `/c/${cat.slug}` : "/"} className="crumb">
               {cat[lang]}
             </Link>
             <BlurText as="h1" text={top.title} />

@@ -16,9 +16,16 @@ export type User = {
   hash?: string;
   google?: string;
   created: string;
-  /** Section settings (same format as the "sec" cookie, see lib/prefs.ts). */
-  prefs?: string;
+  /** Reader settings (sections, theme, widgets), same values as the cookies (lib/prefs.ts). */
+  settings?: Partial<Record<"sec" | "theme" | "scheme" | "wg", string>>;
+  /** Sections the reader made (shown as /c/u-<id>). */
+  sections?: OwnSection[];
+  /** Feeds the reader added, into a site section or one of their own. */
+  sources?: OwnSource[];
 };
+
+export type OwnSection = { id: string; name: string; color: string };
+export type OwnSource = { id: string; url: string; name: string; site: string; lang: "vi" | "en"; cat: string; added: string };
 
 /** What the browser keeps in the signed session cookie: enough for the header, no lookup. */
 export type Session = { uid: string; name: string; login: string; exp: number };
@@ -94,6 +101,29 @@ export async function getUser(id: string): Promise<User | null> {
 }
 export async function saveUser(u: User) {
   await kvSet(userKey(u.id), JSON.stringify(u));
+  userCache.set(u.id, { at: Date.now(), user: u });
+}
+
+// Pages read the signed-in reader's own sections and sources on every request: keep each
+// account for a few seconds so one page view costs one lookup at most.
+const userCache = new Map<string, { at: number; user: User | null }>();
+
+/** The signed-in reader's full account, or null. */
+export async function getAccount(): Promise<User | null> {
+  const s = await getSession();
+  if (!s) return null;
+  const hit = userCache.get(s.uid);
+  if (hit && Date.now() - hit.at < 15_000) return hit.user;
+  let user: User | null = null;
+  try {
+    user = await getUser(s.uid);
+  } catch (e) {
+    console.warn("[auth] could not load account:", String(e));
+    return hit?.user ?? null;
+  }
+  userCache.set(s.uid, { at: Date.now(), user });
+  if (userCache.size > 5000) userCache.delete(userCache.keys().next().value!);
+  return user;
 }
 
 export class AuthError extends Error {
@@ -102,7 +132,7 @@ export class AuthError extends Error {
   }
 }
 
-export async function register(rawLogin: string, password: string, rawName: string, prefs?: string): Promise<User> {
+export async function register(rawLogin: string, password: string, rawName: string, settings?: User["settings"]): Promise<User> {
   const login = parseLogin(rawLogin);
   if (!login) throw new AuthError("invalid_login");
   if (password.length < 8 || password.length > 200) throw new AuthError("weak_password");
@@ -111,7 +141,7 @@ export async function register(rawLogin: string, password: string, rawName: stri
   const id = randomUUID();
   // Claim the login name first, so two sign-ups with the same phone/email can't both win.
   if (!(await kvSet(loginKey(login), id, { nx: true }))) throw new AuthError("taken");
-  const user: User = { id, name, [login.kind]: login.value, hash: await hashPassword(password), created: new Date().toISOString(), prefs };
+  const user: User = { id, name, [login.kind]: login.value, hash: await hashPassword(password), created: new Date().toISOString(), settings };
   await saveUser(user);
   return user;
 }

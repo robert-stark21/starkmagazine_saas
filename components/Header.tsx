@@ -1,18 +1,22 @@
 import Link from "next/link";
 import type { Lang } from "@/lib/sources";
-import { visibleCategories } from "@/lib/prefs";
-import { getSession } from "@/lib/auth";
-import { AccountButton } from "./Account";
+import { getSettings, visibleCategories } from "@/lib/prefs";
+import { getAccount, getSession } from "@/lib/auth";
+import { ownCategories } from "@/lib/own";
+import type { Scheme } from "@/lib/themes";
+import { AccountButton, SchemeToggle } from "./Account";
 import { UI } from "@/lib/lang";
 import { getQuotes } from "@/lib/prices";
 import { CatNav, KindleToggle, LangToggle, LolTicker, MovieTicker, PriceTicker, ScoreTicker, SongTicker } from "./client";
 import { Logo } from "./Logo";
 
-export async function Header({ lang, updated, kindle }: { lang: Lang; updated: Date; kindle: boolean }) {
+export async function Header({ lang, updated, kindle, scheme }: { lang: Lang; updated: Date; kindle: boolean; scheme: Scheme }) {
   const t = UI[lang];
   // Prices for the ticker, so it shows with the first paint. Cached in memory; right after
   // a restart we wait at most 1.5s and the ticker fills in on the client otherwise.
-  const [quotes, cats, session] = await Promise.all([getQuotes(1500), visibleCategories(), getSession()]);
+  const [session, account, { widgetsOff }] = await Promise.all([getSession(), getAccount(), getSettings()]);
+  const on = (id: string) => !widgetsOff.has(id);
+  const [quotes, cats] = await Promise.all([on("prices") ? getQuotes(1500) : [], visibleCategories(ownCategories(account))]);
   const today = new Intl.DateTimeFormat(lang === "vi" ? "vi-VN" : "en-US", {
     weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Ho_Chi_Minh",
   }).format(new Date());
@@ -27,6 +31,7 @@ export async function Header({ lang, updated, kindle }: { lang: Lang; updated: D
         <div className="tag">{t.tagline}</div>
         <div className="right">
           <span className="date"><span className="cap">{today}</span> · {t.updated} {time}</span>
+          <SchemeToggle scheme={scheme} lang={lang} />
           <KindleToggle on={kindle} lang={lang} />
           <LangToggle lang={lang} />
           <AccountButton lang={lang} name={session?.name ?? null} />
@@ -37,16 +42,17 @@ export async function Header({ lang, updated, kindle }: { lang: Lang; updated: D
           { href: "/", slug: "", label: t.home },
           ...cats.map((c) => ({ href: `/c/${c.slug}`, slug: c.slug, label: c[lang], color: c.color })),
           // Pick which sections show here.
-          { href: "/tai-khoan#muc", slug: "__edit", label: lang === "vi" ? "＋ Tùy chỉnh" : "＋ Customise", className: "cat-edit" },
+          { href: "/tai-khoan", slug: "__edit", label: lang === "vi" ? "＋ Tùy chỉnh" : "＋ Customise", className: "cat-edit" },
         ]}
       />
     </header>
     {/* Outside the sticky header: it scrolls away (fading out) while the header stays. */}
-    <PriceTicker initial={quotes} lang={lang} />
-    <ScoreTicker lang={lang} />
-    <LolTicker lang={lang} />
-    <SongTicker lang={lang} />
-    <MovieTicker lang={lang} />
+    {/* Each can be switched off in Settings → Widgets. */}
+    {on("prices") && <PriceTicker initial={quotes} lang={lang} />}
+    {on("scores") && <ScoreTicker lang={lang} />}
+    {on("lol") && <LolTicker lang={lang} />}
+    {on("songs") && <SongTicker lang={lang} />}
+    {on("movies") && <MovieTicker lang={lang} />}
     </>
   );
 }

@@ -23,8 +23,13 @@ export const CATEGORIES: Category[] = [
   { slug: "cong-nghe", vi: "Công nghệ", en: "Tech", color: "#2563eb" },
   { slug: "crypto", vi: "Crypto", en: "Crypto", color: "#f59e0b" },
   { slug: "tai-chinh", vi: "Tài chính", en: "Finance", color: "#059669" },
+  { slug: "chinh-tri", vi: "Chính trị", en: "Politics", color: "#991b1b" },
+  { slug: "xa-hoi", vi: "Xã hội", en: "Society", color: "#64748b" },
   { slug: "the-thao", vi: "Thể thao", en: "Sports", color: "#dc2626" },
   { slug: "esport", vi: "E-sport", en: "Esports", color: "#65a30d" },
+  { slug: "du-lich", vi: "Du lịch", en: "Travel", color: "#0ea5e9" },
+  { slug: "suc-khoe", vi: "Sức khỏe", en: "Health", color: "#14b8a6" },
+  { slug: "giao-duc", vi: "Giáo dục", en: "Education", color: "#ca8a04" },
   { slug: "design", vi: "Design", en: "Design", color: "#9333ea" },
   { slug: "ui-ux", vi: "UI/UX", en: "UI/UX", color: "#db2777" },
   { slug: "kien-truc", vi: "Kiến trúc", en: "Architecture", color: "#a16207" },
@@ -36,6 +41,39 @@ export const CATEGORIES: Category[] = [
 
 // Add or remove sources here. Feeds that fail are skipped silently.
 export const SOURCES: Source[] = [
+  // Chính trị: thời sự trong nước, chính trị thế giới.
+  { name: "VnExpress Thời sự", url: "https://vnexpress.net/rss/thoi-su.rss", category: "chinh-tri", lang: "vi", region: "vn" },
+  { name: "Tuổi Trẻ Thời sự", url: "https://tuoitre.vn/rss/thoi-su.rss", category: "chinh-tri", lang: "vi", region: "vn" },
+  { name: "Thanh Niên Chính trị", url: "https://thanhnien.vn/rss/chinh-tri.rss", category: "chinh-tri", lang: "vi", region: "vn" },
+  { name: "VnExpress Thế giới", url: "https://vnexpress.net/rss/the-gioi.rss", category: "chinh-tri", lang: "vi", region: "vn" },
+  { name: "BBC Politics", url: "https://feeds.bbci.co.uk/news/politics/rss.xml", category: "chinh-tri", lang: "en", region: "intl" },
+  { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", category: "chinh-tri", lang: "en", region: "intl" },
+  { name: "The Guardian Politics", url: "https://www.theguardian.com/politics/rss", category: "chinh-tri", lang: "en", region: "intl" },
+  { name: "Politico", url: "https://rss.politico.com/politics-news.xml", category: "chinh-tri", lang: "en", region: "intl" },
+  // Xã hội: đời sống, pháp luật.
+  { name: "Dân trí Xã hội", url: "https://dantri.com.vn/rss/xa-hoi.rss", category: "xa-hoi", lang: "vi", region: "vn" },
+  { name: "VnExpress Pháp luật", url: "https://vnexpress.net/rss/phap-luat.rss", category: "xa-hoi", lang: "vi", region: "vn" },
+  { name: "Thanh Niên Đời sống", url: "https://thanhnien.vn/rss/doi-song.rss", category: "xa-hoi", lang: "vi", region: "vn" },
+  { name: "Tuổi Trẻ Pháp luật", url: "https://tuoitre.vn/rss/phap-luat.rss", category: "xa-hoi", lang: "vi", region: "vn" },
+  { name: "The Guardian Society", url: "https://www.theguardian.com/society/rss", category: "xa-hoi", lang: "en", region: "intl" },
+  // Du lịch
+  { name: "VnExpress Du lịch", url: "https://vnexpress.net/rss/du-lich.rss", category: "du-lich", lang: "vi", region: "vn" },
+  { name: "Tuổi Trẻ Du lịch", url: "https://tuoitre.vn/rss/du-lich.rss", category: "du-lich", lang: "vi", region: "vn" },
+  { name: "Dân trí Du lịch", url: "https://dantri.com.vn/rss/du-lich.rss", category: "du-lich", lang: "vi", region: "vn" },
+  { name: "The Guardian Travel", url: "https://www.theguardian.com/travel/rss", category: "du-lich", lang: "en", region: "intl" },
+  { name: "Condé Nast Traveler", url: "https://www.cntraveler.com/feed/rss", category: "du-lich", lang: "en", region: "intl" },
+  // Sức khỏe
+  { name: "VnExpress Sức khỏe", url: "https://vnexpress.net/rss/suc-khoe.rss", category: "suc-khoe", lang: "vi", region: "vn" },
+  { name: "Tuổi Trẻ Sức khỏe", url: "https://tuoitre.vn/rss/suc-khoe.rss", category: "suc-khoe", lang: "vi", region: "vn" },
+  { name: "Dân trí Sức khỏe", url: "https://dantri.com.vn/rss/suc-khoe.rss", category: "suc-khoe", lang: "vi", region: "vn" },
+  { name: "BBC Health", url: "https://feeds.bbci.co.uk/news/health/rss.xml", category: "suc-khoe", lang: "en", region: "intl" },
+  { name: "NYT Well", url: "https://rss.nytimes.com/services/xml/rss/nyt/Well.xml", category: "suc-khoe", lang: "en", region: "intl" },
+  // Giáo dục
+  { name: "VnExpress Giáo dục", url: "https://vnexpress.net/rss/giao-duc.rss", category: "giao-duc", lang: "vi", region: "vn" },
+  { name: "Tuổi Trẻ Giáo dục", url: "https://tuoitre.vn/rss/giao-duc.rss", category: "giao-duc", lang: "vi", region: "vn" },
+  { name: "Dân trí Giáo dục", url: "https://dantri.com.vn/rss/giao-duc.rss", category: "giao-duc", lang: "vi", region: "vn" },
+  { name: "BBC Education", url: "https://feeds.bbci.co.uk/news/education/rss.xml", category: "giao-duc", lang: "en", region: "intl" },
+  { name: "The Guardian Education", url: "https://www.theguardian.com/education/rss", category: "giao-duc", lang: "en", region: "intl" },
   // Công nghệ
   { name: "VnExpress Số hóa", url: "https://vnexpress.net/rss/so-hoa.rss", category: "cong-nghe", lang: "vi", region: "vn" },
   { name: "Tuổi Trẻ Nhịp sống số", url: "https://tuoitre.vn/rss/nhip-song-so.rss", category: "cong-nghe", lang: "vi", region: "vn" },

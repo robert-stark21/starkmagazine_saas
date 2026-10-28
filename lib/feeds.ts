@@ -7,6 +7,7 @@ import { mockArticles } from "./mock";
 import { SCRAPERS } from "./scrapers";
 import { warmLatest } from "./warm";
 import { background } from "./background";
+import { getOwnArticle } from "./own";
 
 export const REFRESH_SECONDS = 600; // 10 minutes
 
@@ -26,6 +27,7 @@ export type Article = {
   translated?: boolean;
   pending?: boolean; // shown untranslated because translation was still running
   keepTitle?: boolean; // the title is a name (an award-winning website): never translated
+  own?: { name: string; color: string }; // from a reader's own section: its name and colour
 };
 
 type Item = Record<string, any>;
@@ -86,7 +88,7 @@ function parseDate(raw?: string): string {
 }
 
 /** Decodes the feed using its declared charset (header or XML prolog), defaulting to UTF-8. */
-function decodeBody(bytes: Uint8Array, contentType: string | null): string {
+export function decodeBody(bytes: Uint8Array, contentType: string | null): string {
   const head = new TextDecoder("latin1").decode(bytes.slice(0, 300));
   const charset =
     contentType?.match(/charset=["']?([\w-]+)/i)?.[1] ?? head.match(/encoding=["']([\w-]+)["']/i)?.[1] ?? "utf-8";
@@ -95,6 +97,38 @@ function decodeBody(bytes: Uint8Array, contentType: string | null): string {
   } catch {
     return new TextDecoder("utf-8").decode(bytes);
   }
+}
+
+/** Parses RSS / Atom bytes into articles of this source (newest 20). */
+export async function itemsFromFeed(bytes: Uint8Array, contentType: string | null, src: Source): Promise<Article[]> {
+  // Some feeds contain a bare "&" which breaks the XML parser.
+  const xml = decodeBody(bytes, contentType).replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g, "&amp;");
+  const feed = await parser.parseString(xml);
+  const items: Article[] = (feed.items ?? []).slice(0, 20).flatMap((item) => {
+    let link = item.link?.trim();
+    // GameK's feeds link through a tracking host (cl44.cnnd.vn) that refuses visitors: use the site itself.
+    if (link && /^https?:\/\/[^/]+\.cnnd\.vn\//.test(link)) link = new URL(src.url).origin + new URL(link).pathname;
+    const title = stripHtml(item.title ?? "");
+    if (!link || !title || NOT_ARTICLE.test(link)) return [];
+    const text = stripHtml(item.contentEncoded || item.content || item.description || item.contentSnippet || "");
+    return [
+      {
+        id: toId(link),
+        title,
+        link,
+        excerpt: excerpt(text),
+        text,
+        image: findImage(item),
+        video: findVideo(item),
+        source: src.name,
+        category: src.category,
+        lang: src.lang,
+        region: src.region,
+        published: parseDate(item.isoDate || item.pubDate),
+      },
+    ];
+  });
+  return items;
 }
 
 async function fetchSource(src: Source): Promise<Article[]> {
@@ -124,33 +158,7 @@ async function fetchSource(src: Source): Promise<Article[]> {
     signal: AbortSignal.timeout(12000),
   });
   if (!res.ok) throw new Error(`${src.name}: ${res.status}`);
-  // Some feeds contain a bare "&" which breaks the XML parser.
-  const xml = decodeBody(new Uint8Array(await res.arrayBuffer()), res.headers.get("content-type")).replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g, "&amp;");
-  const feed = await parser.parseString(xml);
-  const items: Article[] = (feed.items ?? []).slice(0, 20).flatMap((item) => {
-    let link = item.link?.trim();
-    // GameK's feeds link through a tracking host (cl44.cnnd.vn) that refuses visitors: use the site itself.
-    if (link && /^https?:\/\/[^/]+\.cnnd\.vn\//.test(link)) link = new URL(src.url).origin + new URL(link).pathname;
-    const title = stripHtml(item.title ?? "");
-    if (!link || !title || NOT_ARTICLE.test(link)) return [];
-    const text = stripHtml(item.contentEncoded || item.content || item.description || item.contentSnippet || "");
-    return [
-      {
-        id: toId(link),
-        title,
-        link,
-        excerpt: excerpt(text),
-        text,
-        image: findImage(item),
-        video: findVideo(item),
-        source: src.name,
-        category: src.category,
-        lang: src.lang,
-        region: src.region,
-        published: parseDate(item.isoDate || item.pubDate),
-      },
-    ];
-  });
+  const items = await itemsFromFeed(new Uint8Array(await res.arrayBuffer()), res.headers.get("content-type"), src);
   return src.pageImages ? addPageImages(items) : items;
 }
 
@@ -275,7 +283,8 @@ export function lastUpdated(): Date {
 
 export async function getArticle(id: string): Promise<Article | undefined> {
   const all = await getAllArticles();
-  return all.find((a) => a.id === id) ?? recoverArticle(id, all);
+  // Stories from sources readers added are kept apart (lib/own.ts).
+  return all.find((a) => a.id === id) ?? (await getOwnArticle(id)) ?? recoverArticle(id, all);
 }
 
 /** "vnexpress.net" for "e.vnexpress.net", "tapchikientruc.com.vn" for "www.tapchikientruc.com.vn". */

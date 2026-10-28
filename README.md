@@ -53,6 +53,10 @@ Bản này giữ nguyên giao diện STARK và thêm:
 - **Cá nhân hóa chuyên mục** (trang `/tai-khoan`, hoặc "＋ Tùy chỉnh" cuối menu): bật/tắt, sắp xếp lại. Chưa đăng nhập thì lưu trên thiết bị; đăng nhập thì lưu vào tài khoản và theo người dùng sang thiết bị khác.
 - **SEO cơ bản**: tiêu đề/mô tả cho từng trang, `sitemap.xml`, `robots.txt`, Open Graph, dữ liệu cấu trúc (NewsArticle, WebSite).
 - **Nút "Ủng hộ"** góc phải dưới, mở mã QR donate.
+- **Chuyên mục mới**: Chính trị, Xã hội, Du lịch, Sức khỏe, Giáo dục (nguồn trong `lib/sources.ts`).
+- **Giao diện** (`/giao-dien`): 6 theme (Mặc định, Trẻ trung, Dễ đọc, Cute, Ngầu, Công nghệ) × Sáng / Tối / Tự động; nút đổi sáng tối trên header. Màu theme trong `lib/themes.ts`, kiểu dáng trong `app/globals.css`.
+- **Nguồn tin riêng** (`/tai-khoan/nguon`, cần đăng nhập): dán link trang hoặc RSS, thêm vào mục có sẵn hoặc mục tự tạo (tối đa 30 nguồn, 10 mục). Chỉ đọc các trang công khai (chặn localhost / mạng nội bộ).
+- **Tiện ích** (`/tai-khoan/tien-ich`): bật/tắt thanh giá, tỉ số, LMHT, bài hát, phim, BXH nhạc, thanh lý, lịch kinh tế, thời tiết điểm du lịch (Open-Meteo, mục Du lịch).
 
 ### Biến môi trường (Vercel → Settings → Environment Variables)
 

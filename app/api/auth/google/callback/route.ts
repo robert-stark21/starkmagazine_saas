@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { googleEnabled, googleUser, saveUser, sessionCookie, sessionToken } from "@/lib/auth";
 import { safeNext } from "@/lib/http";
-import { formatPrefs, parsePrefs, PREFS_COOKIE, prefsCookie } from "@/lib/prefs";
+import { syncOnLogin } from "@/lib/prefs";
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
@@ -39,11 +39,7 @@ export async function GET(req: NextRequest) {
     const res = NextResponse.redirect(new URL(safeNext(next, "/tai-khoan"), origin));
     res.cookies.delete("g_state");
     res.cookies.set(sessionCookie(sessionToken(user)));
-    if (user.prefs) res.cookies.set(prefsCookie(user.prefs));
-    else {
-      user.prefs = formatPrefs(parsePrefs(req.cookies.get(PREFS_COOKIE)?.value));
-      await saveUser(user);
-    }
+    if (syncOnLogin(res, req, user)) await saveUser(user);
     return res;
   } catch (e) {
     console.error("[auth] google:", e);

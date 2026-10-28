@@ -279,3 +279,304 @@ export function AccountButton({ lang, name }: { lang: Lang; name: string | null 
     </Link>
   );
 }
+
+const savePrefs = (data: Record<string, string>) =>
+  fetch("/api/prefs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
+
+const systemDark = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-color-scheme: dark)").matches;
+
+/** Header button: switches between light and dark at once (the icon follows the CSS). */
+export function SchemeToggle({ scheme, lang }: { scheme: "auto" | "light" | "dark"; lang: Lang }) {
+  const label = lang === "vi" ? "Đổi sáng / tối" : "Light / dark";
+  const flip = () => {
+    const html = document.documentElement;
+    const cur = html.dataset.scheme === "auto" || !html.dataset.scheme ? (systemDark() ? "dark" : "light") : html.dataset.scheme;
+    const next = cur === "dark" ? "light" : "dark";
+    html.dataset.scheme = next;
+    savePrefs({ scheme: next }).catch(() => {});
+  };
+  return (
+    <button className="scheme-toggle" onClick={flip} aria-label={label} title={label} data-initial={scheme}>
+      <svg className="moon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+      </svg>
+      <svg className="sun" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      </svg>
+    </button>
+  );
+}
+
+type ThemeCard = { id: string; name: string; desc: string; font?: string; radius: string; light: Record<string, string>; dark: Record<string, string> };
+
+/** Theme gallery: each card previews the theme in light and dark; a click applies it at once. */
+export function ThemePicker({ lang, themes, theme, scheme }: { lang: Lang; themes: ThemeCard[]; theme: string; scheme: "auto" | "light" | "dark" }) {
+  const vi = lang === "vi";
+  const router = useRouter();
+  const [cur, setCur] = useState(theme);
+  const [sch, setSch] = useState(scheme);
+  const pickTheme = (id: string) => {
+    setCur(id);
+    document.documentElement.dataset.theme = id;
+    savePrefs({ theme: id }).then(() => router.refresh()).catch(() => {});
+  };
+  const pickScheme = (s: "auto" | "light" | "dark") => {
+    setSch(s);
+    document.documentElement.dataset.scheme = s;
+    savePrefs({ scheme: s }).catch(() => {});
+  };
+  const half = (p: Record<string, string>, t: ThemeCard) => (
+    <div
+      className="tc-half"
+      style={{
+        ["--p-bg" as any]: p.bg, ["--p-surface" as any]: p.surface, ["--p-text" as any]: p.text, ["--p-muted" as any]: p.muted,
+        ["--p-line" as any]: p.line, ["--p-accent" as any]: p.accent, ["--p-brand" as any]: p.brand, ["--p-radius" as any]: t.radius,
+        ["--p-font" as any]: t.font ?? "var(--font-sans)",
+      }}
+    >
+      <div className="tc-bar"><span className="tc-logo" /><span className="tc-pill" /></div>
+      <div className="tc-card">
+        <span className="tc-t">{vi ? "Tin nổi bật hôm nay" : "Today's top story"}</span>
+        <span className="tc-l" />
+        <span className="tc-l s" />
+        <span className="tc-btn">{vi ? "Đọc" : "Read"}</span>
+      </div>
+    </div>
+  );
+  return (
+    <>
+      <div className="scheme-seg" role="radiogroup" aria-label={vi ? "Chế độ màu" : "Colour mode"}>
+        {([
+          ["auto", vi ? "🖥️ Tự động" : "🖥️ Auto"],
+          ["light", vi ? "☀️ Sáng" : "☀️ Light"],
+          ["dark", vi ? "🌙 Tối" : "🌙 Dark"],
+        ] as const).map(([k, label]) => (
+          <button key={k} role="radio" aria-checked={sch === k} className={sch === k ? "on" : ""} onClick={() => pickScheme(k)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="theme-grid">
+        {themes.map((t) => (
+          <button key={t.id} className={`theme-card${cur === t.id ? " on" : ""}`} onClick={() => pickTheme(t.id)} aria-pressed={cur === t.id}>
+            <div className="tc-prev">
+              {half(t.light, t)}
+              {half(t.dark, t)}
+            </div>
+            <div className="tc-body">
+              <div className="tc-name">
+                {t.name}
+                {cur === t.id && <span className="tc-check" aria-hidden="true">✓</span>}
+              </div>
+              <div className="tc-desc">{t.desc}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** Settings → Widgets: switch each ticker or panel on or off. */
+export function WidgetToggles({ lang, widgets, off, sectionNames }: { lang: Lang; widgets: { id: string; label: string; where: string[] }[]; off: string[]; sectionNames: Record<string, string> }) {
+  const vi = lang === "vi";
+  const router = useRouter();
+  const [hidden, setHidden] = useState(new Set(off));
+  const [state, setState] = useState<"idle" | "saved" | "error">("idle");
+  const toggle = async (id: string) => {
+    const next = new Set(hidden);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setHidden(next);
+    try {
+      const r = await savePrefs({ wg: [...next].join(",") });
+      if (!r.ok) throw new Error();
+      setState("saved");
+      router.refresh();
+    } catch {
+      setState("error");
+    }
+  };
+  return (
+    <div className="sec-edit">
+      <div className="sec-edit-h">
+        <p className="muted small">{vi ? "Bật hoặc tắt các tiện ích hiện trên từng trang." : "Switch the widgets shown on each page on or off."}</p>
+        <span className={`save-state ${state}`} aria-live="polite">{state === "saved" ? (vi ? "Đã lưu ✓" : "Saved ✓") : state === "error" ? (vi ? "Lỗi, thử lại" : "Error, try again") : ""}</span>
+      </div>
+      <ul>
+        {widgets.map((w) => (
+          <li key={w.id} className={hidden.has(w.id) ? "off" : ""}>
+            <span className="sec-name">
+              {w.label}
+              <small className="muted wg-where">{w.where.map((s) => sectionNames[s] ?? s).join(" · ")}</small>
+            </span>
+            <button role="switch" aria-checked={!hidden.has(w.id)} aria-label={w.label} className={`switch${hidden.has(w.id) ? "" : " on"}`} onClick={() => toggle(w.id)}>
+              <i />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+type OwnSec = { id: string; name: string; color: string };
+type OwnSrc = { id: string; url: string; name: string; site: string; lang: string; cat: string };
+
+const SRC_ERR: Record<string, { vi: string; en: string }> = {
+  bad_url: { vi: "Địa chỉ không hợp lệ.", en: "That address is not valid." },
+  blocked: { vi: "Địa chỉ này không được phép.", en: "That address is not allowed." },
+  no_feed: { vi: "Không tìm thấy RSS ở trang này. Thử dán link RSS trực tiếp.", en: "No RSS feed found there. Try the feed address itself." },
+  unreachable: { vi: "Không truy cập được trang này.", en: "Could not reach that site." },
+  exists: { vi: "Nguồn này đã có rồi.", en: "You already added this source." },
+  too_many: { vi: "Tối đa 30 nguồn.", en: "Up to 30 sources." },
+  too_many_sections: { vi: "Tối đa 10 mục riêng.", en: "Up to 10 sections." },
+  name: { vi: "Hãy đặt tên cho mục.", en: "Give the section a name." },
+  rate: { vi: "Thử quá nhiều lần, đợi 10 phút nhé.", en: "Too many tries, wait 10 minutes." },
+  bad_cat: { vi: "Chọn một mục.", en: "Pick a section." },
+  server: { vi: "Có lỗi máy chủ, thử lại sau.", en: "Server error, try again later." },
+};
+
+/** Settings → Sources: add feeds to a site section or to sections the reader makes. */
+export function SourcesManager({ lang, siteSections, initialSections, initialSources }: { lang: Lang; siteSections: { slug: string; label: string; color: string }[]; initialSections: OwnSec[]; initialSources: OwnSrc[] }) {
+  const vi = lang === "vi";
+  const router = useRouter();
+  const [sections, setSections] = useState(initialSections);
+  const [sources, setSources] = useState(initialSources);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [url, setUrl] = useState("");
+  const [cat, setCat] = useState(initialSections[0] ? `u-${initialSections[0].id}` : siteSections[0]?.slug ?? "");
+  const [secName, setSecName] = useState("");
+
+  const call = async (payload: Record<string, unknown>, key: string) => {
+    setBusy(key);
+    setError("");
+    try {
+      const r = await fetch("/api/sources", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setError((SRC_ERR[j.error] ?? SRC_ERR.server)[lang]);
+        return false;
+      }
+      setSections(j.sections);
+      setSources(j.sources);
+      router.refresh();
+      return j as { sections: OwnSec[]; sources: OwnSrc[] };
+    } catch {
+      setError(SRC_ERR.server[lang]);
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  };
+  const allCats = [
+    ...sections.map((s) => ({ slug: `u-${s.id}`, label: `★ ${s.name}`, color: s.color })),
+    ...siteSections,
+  ];
+  const catLabel = (slug: string) => allCats.find((c) => c.slug === slug)?.label ?? slug;
+
+  return (
+    <div className="own">
+      <section className="own-block">
+        <h2>{vi ? "Thêm nguồn tin" : "Add a source"}</h2>
+        <p className="muted small">
+          {vi ? "Dán link trang báo, blog hoặc link RSS. STARK tự tìm RSS và lấy tin mới mỗi 10 phút." : "Paste a news site, blog or RSS address. STARK finds the feed and checks it every 10 minutes."}
+        </p>
+        <form
+          className="own-add"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!url.trim()) return;
+            if (await call({ action: "add", url, cat }, "add")) setUrl("");
+          }}
+        >
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={vi ? "vd: genk.vn hoặc https://…/rss" : "e.g. theverge.com or https://…/feed"} inputMode="url" aria-label={vi ? "Địa chỉ nguồn" : "Source address"} />
+          <select value={cat} onChange={(e) => setCat(e.target.value)} aria-label={vi ? "Thêm vào mục" : "Add to section"}>
+            {sections.length > 0 && (
+              <optgroup label={vi ? "Mục của tôi" : "My sections"}>
+                {sections.map((s) => <option key={s.id} value={`u-${s.id}`}>{s.name}</option>)}
+              </optgroup>
+            )}
+            <optgroup label={vi ? "Mục có sẵn" : "Site sections"}>
+              {siteSections.map((c) => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+            </optgroup>
+          </select>
+          <button className="btn-primary" disabled={busy === "add"}>{busy === "add" ? (vi ? "Đang tìm…" : "Finding…") : vi ? "Thêm" : "Add"}</button>
+        </form>
+        {error && <p className="auth-err" role="alert">{error}</p>}
+      </section>
+
+      <section className="own-block">
+        <h2>{vi ? "Mục của tôi" : "My sections"}</h2>
+        <p className="muted small">{vi ? "Tự tạo chuyên mục riêng, gom các nguồn bạn thích. Mục mới hiện trên menu và trang chủ." : "Make your own sections for the sources you like. They show in the menu and on the home page."}</p>
+        <form
+          className="own-add"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const r = await call({ action: "section-add", name: secName }, "sec");
+            if (r) {
+              setSecName("");
+              const made = r.sections[r.sections.length - 1];
+              if (made) setCat(`u-${made.id}`);
+            }
+          }}
+        >
+          <input value={secName} onChange={(e) => setSecName(e.target.value)} placeholder={vi ? "Tên mục, vd: Xe cộ, Nấu ăn…" : "Section name, e.g. Cars, Cooking…"} maxLength={40} aria-label={vi ? "Tên mục" : "Section name"} />
+          <button className="btn-ghost" disabled={busy === "sec"}>{vi ? "＋ Tạo mục" : "＋ New section"}</button>
+        </form>
+        {sections.length > 0 && (
+          <ul className="own-list">
+            {sections.map((s) => (
+              <li key={s.id} style={{ ["--c" as any]: s.color }}>
+                <span className="sec-dot" aria-hidden="true" />
+                <a className="sec-name" href={`/c/u-${s.id}`}>{s.name}</a>
+                <span className="muted small">{sources.filter((x) => x.cat === `u-${s.id}`).length} {vi ? "nguồn" : "sources"}</span>
+                <button
+                  className="own-x"
+                  onClick={() => {
+                    const name = prompt(vi ? "Tên mới" : "New name", s.name);
+                    if (name && name.trim() && name !== s.name) call({ action: "section-rename", id: s.id, name }, s.id);
+                  }}
+                >
+                  {vi ? "Đổi tên" : "Rename"}
+                </button>
+                <button
+                  className="own-x danger"
+                  onClick={() => confirm(vi ? `Xoá mục "${s.name}" và các nguồn trong đó?` : `Delete "${s.name}" and its sources?`) && call({ action: "section-remove", id: s.id }, s.id)}
+                >
+                  {vi ? "Xoá" : "Delete"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="own-block">
+        <h2>{vi ? "Nguồn đã thêm" : "Your sources"} <span className="muted small">({sources.length}/30)</span></h2>
+        {sources.length ? (
+          <ul className="own-list">
+            {sources.map((s) => (
+              <li key={s.id}>
+                <span className="own-src">
+                  <b>{s.name}</b>
+                  <small className="muted">{s.site} · {s.lang === "vi" ? "Tiếng Việt" : "English"}</small>
+                </span>
+                <select value={s.cat} onChange={(e) => call({ action: "move", id: s.id, cat: e.target.value }, s.id)} aria-label={vi ? "Mục" : "Section"} title={catLabel(s.cat)}>
+                  {allCats.map((c) => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+                </select>
+                <button className="own-x danger" onClick={() => call({ action: "remove", id: s.id }, s.id)} disabled={busy === s.id}>
+                  {vi ? "Xoá" : "Remove"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted small">{vi ? "Chưa có nguồn nào." : "No sources yet."}</p>
+        )}
+      </section>
+    </div>
+  );
+}

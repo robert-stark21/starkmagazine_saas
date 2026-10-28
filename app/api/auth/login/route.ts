@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authenticate, AuthError, rateLimit, saveUser, sessionCookie, sessionToken } from "@/lib/auth";
 import { clientIp } from "@/lib/http";
-import { formatPrefs, parsePrefs, PREFS_COOKIE, prefsCookie } from "@/lib/prefs";
+import { syncOnLogin } from "@/lib/prefs";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,12 +10,8 @@ export async function POST(req: NextRequest) {
     const user = await authenticate(String(body.login ?? ""), String(body.password ?? ""));
     const res = NextResponse.json({ ok: true, name: user.name });
     res.cookies.set(sessionCookie(sessionToken(user)));
-    // The account's sections follow the reader to this device; a first login saves this device's.
-    if (user.prefs) res.cookies.set(prefsCookie(user.prefs));
-    else {
-      user.prefs = formatPrefs(parsePrefs(req.cookies.get(PREFS_COOKIE)?.value));
-      await saveUser(user);
-    }
+    // The account's settings follow the reader to this device; a first login saves this device's.
+    if (syncOnLogin(res, req, user)) await saveUser(user);
     return res;
   } catch (e) {
     if (e instanceof AuthError) return NextResponse.json({ error: e.code }, { status: e.code === "rate" ? 429 : 401 });

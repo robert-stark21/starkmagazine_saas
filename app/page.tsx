@@ -6,6 +6,8 @@ import { getAllArticles, hasUntranslated, localize } from "@/lib/feeds";
 import { RefreshSoon } from "@/components/client";
 import { warm } from "@/lib/warm";
 import { visibleCategories } from "@/lib/prefs";
+import { getAccount } from "@/lib/auth";
+import { ownArticles, ownCategories } from "@/lib/own";
 import { getLang, UI } from "@/lib/lang";
 import { ArticleCard } from "@/components/ArticleCard";
 
@@ -19,9 +21,14 @@ export default async function Home() {
   const lang = await getLang();
   const t = UI[lang];
   // Only the sections this reader reads (all of them by default), in their order.
-  const cats = await visibleCategories();
+  // The reader's own sections and sources (signed in) come in alongside the site's.
+  const account = await getAccount();
+  const cats = await visibleCategories(ownCategories(account));
   const shownCats = new Set(cats.map((c) => c.slug));
-  const all = (await getAllArticles()).filter((a) => shownCats.has(a.category));
+  const [site, own] = await Promise.all([getAllArticles(), ownArticles(account)]);
+  const all = [...own, ...site]
+    .filter((a) => shownCats.has(a.category))
+    .sort((a, b) => b.published.localeCompare(a.published));
 
   const withImg = all.filter((a) => a.image);
   const hero = withImg[0] ?? all[0];

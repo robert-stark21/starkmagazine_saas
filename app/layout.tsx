@@ -5,7 +5,9 @@ import { Suspense } from "react";
 import { AutoRefresh, CardPrefetch, CardTransitions, Grain, NavProgress, Spotlight } from "@/components/client";
 import { Header } from "@/components/Header";
 import { lastUpdated, REFRESH_SECONDS } from "@/lib/feeds";
-import { Literata, Manrope } from "next/font/google";
+import { Be_Vietnam_Pro, JetBrains_Mono, Literata, Manrope, Nunito, Oswald, Space_Grotesk } from "next/font/google";
+import { themeCss } from "@/lib/themes";
+import { getSettings } from "@/lib/prefs";
 import { Analytics } from "@vercel/analytics/next";
 import { Donate } from "@/components/Donate";
 import { donateInfo } from "@/lib/donate";
@@ -17,6 +19,14 @@ const manrope = Manrope({ subsets: ["latin", "latin-ext", "vietnamese"], display
 // Book face for article text in Kindle mode (close to Kindle's Bookerly). Not preloaded:
 // the browser only fetches it when Kindle mode actually uses it.
 const literata = Literata({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-reading", preload: false });
+// Theme fonts (lib/themes.ts). Not preloaded: a browser only downloads the one its theme uses.
+const bevn = Be_Vietnam_Pro({ subsets: ["latin", "latin-ext", "vietnamese"], weight: ["400", "500", "600", "700", "800"], display: "swap", variable: "--font-bevn", preload: false });
+const nunito = Nunito({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-nunito", preload: false });
+const oswald = Oswald({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-oswald", preload: false });
+const grotesk = Space_Grotesk({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-grotesk", preload: false });
+const mono = JetBrains_Mono({ subsets: ["latin", "latin-ext", "vietnamese"], display: "swap", variable: "--font-mono", preload: false });
+const FONT_VARS = [bevn, nunito, oswald, grotesk, mono].map((f) => f.variable).join(" ");
+const THEME_CSS = themeCss();
 
 export const metadata: Metadata = {
   // Absolute base for share links (Open Graph); set NEXT_PUBLIC_SITE_URL to the real domain.
@@ -58,6 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const lang = await getLang();
   const kindle = await getKindle();
   const donate = donateInfo();
+  const { theme, scheme } = await getSettings();
   // Search engines: who publishes the site, and its search box.
   const jsonLd = {
     "@context": "https://schema.org",
@@ -67,14 +78,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ],
   };
   return (
-    <html lang={lang} className={`${manrope.variable} ${literata.variable}${kindle ? " kindle" : ""}`}>
+    <html
+      lang={lang}
+      data-theme={theme}
+      data-scheme={scheme}
+      className={`${manrope.variable} ${literata.variable} ${FONT_VARS}${kindle ? " kindle" : ""}`}
+    >
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: THEME_CSS }} />
+      </head>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(jsonLd) }} />
         <Grain />
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
-        <Header lang={lang} updated={lastUpdated()} kindle={kindle} />
+        <Header lang={lang} updated={lastUpdated()} kindle={kindle} scheme={scheme} />
         {children}
         <AutoRefresh seconds={REFRESH_SECONDS} />
         <Spotlight />
